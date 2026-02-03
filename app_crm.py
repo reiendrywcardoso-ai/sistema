@@ -4,10 +4,10 @@ import requests
 from datetime import datetime, date, timedelta
 import time
 import database as db 
-import re  # Import necessário para formatação
+import re 
 
 # ==========================================
-# DEFINIÇÃO DAS LISTAS (FIXAS NO TOPO)
+# LISTAS FIXAS (CONFIGURAÇÃO)
 # ==========================================
 LISTA_BANCOS = [
   "001 - Banco do Brasil",
@@ -86,11 +86,10 @@ LISTA_BANCOS = [
   "757 - Banco KEB Hana",
   "Outro"
 ]
-
 TIPOS_CHAVE_PIX = ["CPF", "Celular", "E-mail", "CNPJ", "Chave Aleatória"]
 TIPOS_CONTA = ["Corrente", "Poupança", "Pagamento", "Salário"]
 
-# Opções Exatas Pedidas
+# --- SUAS LISTAS PERSONALIZADAS ---
 SUBS_CLT = [
     "Margem Livre", 
     "Sem Margem", 
@@ -116,32 +115,24 @@ SUBS_FGTS = [
 ]
 
 # ==========================================
-# FUNÇÕES AUXILIARES E DE FORMATAÇÃO
+# FUNÇÕES
 # ==========================================
 def formatar_cpf(valor):
-    """Aplica a máscara 000.000.000-00"""
     if not valor: return ""
     valor = str(valor)
-    # Remove tudo que não for dígito
     numeros = re.sub(r'\D', '', valor)
-    
     if len(numeros) == 11:
         return f"{numeros[:3]}.{numeros[3:6]}.{numeros[6:9]}-{numeros[9:]}"
-    return valor # Retorna original se não tiver 11 dígitos (para não bugar edição parcial)
+    return valor
 
 def formatar_telefone(valor):
-    """Aplica a máscara (00) 00000-0000 ou (00) 0000-0000"""
     if not valor: return ""
     valor = str(valor)
     numeros = re.sub(r'\D', '', valor)
-    
-    if len(numeros) == 11: # Celular
-        return f"({numeros[:2]}) {numeros[2:7]}-{numeros[7:]}"
-    elif len(numeros) == 10: # Fixo
-        return f"({numeros[:2]}) {numeros[2:6]}-{numeros[6:]}"
+    if len(numeros) == 11: return f"({numeros[:2]}) {numeros[2:7]}-{numeros[7:]}"
+    elif len(numeros) == 10: return f"({numeros[:2]}) {numeros[2:6]}-{numeros[6:]}"
     return valor
 
-# Callbacks para aplicar a máscara na hora da digitação (on_change)
 def mascara_cad_cpf():
     if 'cad_cpf' in st.session_state:
         st.session_state.cad_cpf = formatar_cpf(st.session_state.cad_cpf)
@@ -182,11 +173,11 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     """, unsafe_allow_html=True)
 
 # ==========================================
-# RENDERIZAÇÃO DA PÁGINA
+# RENDERIZAÇÃO
 # ==========================================
 def render_page(pagina_atual):
     
-    # --- 1. LIMPEZA AUTOMÁTICA DE CAMPOS ---
+    # --- LIMPEZA DE SESSÃO ---
     if st.session_state.get('limpar_formulario_cadastro', False):
         keys_to_clear = [
             'cad_nome', 'cad_cpf', 'cad_tipo', 'cad_tel', 'cad_sub', 
@@ -194,20 +185,19 @@ def render_page(pagina_atual):
             'cad_nasc', 'cad_termino', 'cad_consulta', 'cad_obs'
         ]
         for key in keys_to_clear:
-            if key in st.session_state:
-                del st.session_state[key]
+            if key in st.session_state: del st.session_state[key]
         
         st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
         st.session_state['limpar_formulario_cadastro'] = False
 
-    # Inicializa variáveis padrão se não existirem
+    # Inits
     for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']:
         if k not in st.session_state: st.session_state[k] = ""
     if 'temp_lists' not in st.session_state: st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
     if 'edit_pix_list' not in st.session_state: st.session_state.edit_pix_list = []
     if 'edit_bank_list' not in st.session_state: st.session_state.edit_bank_list = []
 
-    # --- FILTRO USUÁRIO ---
+    # Admin Filter
     filtro_usuario = st.session_state.username 
     if st.session_state.role == 'admin':
         st.sidebar.markdown("---")
@@ -217,7 +207,6 @@ def render_page(pagina_atual):
     
     df = db.get_clientes(filtro_usuario)
     
-    # Cabeçalho
     if pagina_atual == "Dashboard":
         st.markdown(f"## Olá, {st.session_state.username}")
         st.markdown("<p style='color: #64748b;'>Visão geral da sua carteira hoje.</p>", unsafe_allow_html=True)
@@ -229,28 +218,24 @@ def render_page(pagina_atual):
     st.write("") 
 
     # ==========================
-    # DASHBOARD (LÓGICA DE ALERTAS)
+    # DASHBOARD
     # ==========================
     if pagina_atual == "Dashboard":
         total = len(df)
         pendentes = len(df[df['status_venda'] == 'Pendente'])
-        
-        # Conta Bloqueados/Não Elegíveis para estatística
         bloqueados = len(df[df['status_venda'].isin(['Não Elegível', 'Bloqueado'])])
         
         hoje = datetime.now().date()
-        dia_semana = hoje.weekday() # 0=Seg, 1=Ter, ..., 6=Dom
+        dia_semana = hoje.weekday() 
         dia_mes = hoje.day
 
         tarefas = []
 
-        # Loop em todos os clientes para verificar regras
         for idx, row in df.iterrows():
             nome = row['nome']
             tipo = row['tipo']
-            sub = row['sub_categoria'] # Situação
+            sub = row['sub_categoria']
             
-            # Converter datas
             data_term = None
             if row.get('data_termino'):
                 try: data_term = datetime.strptime(str(row['data_termino']), '%Y-%m-%d').date()
@@ -261,57 +246,37 @@ def render_page(pagina_atual):
                 try: data_cons = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
                 except: pass
 
-            # -----------------------------------------------
-            # REGRAS DE ALERTAS
-            # -----------------------------------------------
-
-            # 1. CLT
+            # --- LÓGICA DE ALERTAS ---
+            
+            # CLT
             if tipo == "CLT":
-                # SE TIVER DATA TÉRMINO ATIVA, NÃO AVISA NADA (BLOQUEIO TOTAL)
-                if data_term and data_term >= hoje:
-                    continue # Pula este cliente, não gera alerta
-                
-                # Se não tiver data término ou já passou...
-                if sub == "Não Elegível":
-                    # Avisar toda Terça-feira (1)
-                    if dia_semana == 1:
-                        tarefas.append(f"🔎 Consultar CLT (Elegibilidade): {nome}")
-                
+                if sub == "Data Termino" or (data_term and data_term >= hoje):
+                    continue # Não avisa
+                if sub == "Não Elegível" and dia_semana == 1:
+                    tarefas.append(f"🔎 Consultar CLT (Elegibilidade): {nome}")
                 elif sub == "Margem Livre" and row['status_venda'] == "Pendente":
-                    # Avisa todo dia se tem margem
                     tarefas.append(f"✅ Margem Livre CLT: {nome}")
 
-            # 2. INSS
+            # INSS
             elif tipo == "INSS":
-                if sub == "Bloqueado":
-                    # Avisar toda Terça-feira (1)
-                    if dia_semana == 1:
-                        tarefas.append(f"🔓 Tentar Desbloqueio INSS: {nome}")
-                
+                if sub == "Bloqueado" and dia_semana == 1:
+                    tarefas.append(f"🔓 Tentar Desbloqueio INSS: {nome}")
                 elif sub in ["Tem Port", "Tem Refin"]:
-                    # Avisar todo dia
                     tarefas.append(f"💲 Oportunidade ({sub}): {nome}")
-                
                 elif sub == "Margem Livre" and row['status_venda'] == "Pendente":
                     tarefas.append(f"✅ Margem Livre INSS: {nome}")
 
-            # 3. FGTS
+            # FGTS
             elif tipo == "FGTS":
                 if sub == "Tem Saldo":
                     tarefas.append(f"💰 FGTS com Saldo: {nome}")
-                
                 elif sub == "Sem Saldo":
-                    # Avisar dia 10 E dias 20 a 28
-                    dias_aviso = [10, 20, 21, 22, 23, 24, 25, 26, 27, 28]
-                    if dia_mes in dias_aviso:
+                    if dia_mes in [10, 20, 21, 22, 23, 24, 25, 26, 27, 28]:
                         tarefas.append(f"📅 Consultar Saldo FGTS: {nome}")
-                
                 elif sub == "Aniversário":
-                    # Avisar na data específica
                     if data_cons and data_cons <= hoje and row['status_venda'] != "Fechado Comigo":
                         tarefas.append(f"🎂 Aniversário FGTS (Consultar): {nome}")
 
-        # Renderizar Cards
         c1, c2, c3, c4 = st.columns(4)
         with c1: card_stats_react("Total Clientes", total, "Carteira ativa", "blue", "👥")
         with c2: card_stats_react("Pendentes", pendentes, "Em andamento", "amber", "⏳")
@@ -391,31 +356,24 @@ def render_page(pagina_atual):
             c1, c2 = st.columns(2)
             with c1:
                 nn = st.text_input("Nome Completo", key="cad_nome")
-                
-                # --- CPF COM FORMATAÇÃO AUTOMÁTICA ---
                 nc = st.text_input("CPF", key="cad_cpf", placeholder="000.000.000-00", on_change=mascara_cad_cpf)
                 
-                # TIPO (Isso define o que aparece no próximo dropdown)
+                # TIPO
                 nt = st.selectbox("Tipo", ["CLT", "INSS", "FGTS"], key="cad_tipo")
                 
-                # Formato DD/MM/YYYY
                 nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc", format="DD/MM/YYYY")
             
             with c2:
-                # --- TELEFONE COM FORMATAÇÃO AUTOMÁTICA ---
                 ntel = st.text_input("Telefone", key="cad_tel", placeholder="(00) 00000-0000", on_change=mascara_cad_tel)
                 
-                # --- DEFINIÇÃO DINÂMICA DAS OPÇÕES DE SITUAÇÃO ---
-                if nt == "INSS": 
-                    opcoes_sub = SUBS_INSS
-                elif nt == "FGTS": 
-                    opcoes_sub = SUBS_FGTS
-                else: 
-                    opcoes_sub = SUBS_CLT # CLT é o padrão
+                # --- LISTAS DINÂMICAS ---
+                if nt == "INSS": opcoes_sub = SUBS_INSS
+                elif nt == "FGTS": opcoes_sub = SUBS_FGTS
+                else: opcoes_sub = SUBS_CLT
                 
                 nsub = st.selectbox("Situação", opcoes_sub, key="cad_sub")
 
-                # Campos Condicionais de Data
+                # Condicionais
                 data_termino = None
                 data_consulta = None
 
@@ -427,19 +385,13 @@ def render_page(pagina_atual):
                     st.caption("Programar Consulta")
                     data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data que o sistema emitirá o alerta.", format="DD/MM/YYYY")
 
-            # --- BUSCA CEP MAIS BONITA E ALINHADA ---
+            # BUSCA CEP - NOVO LAYOUT
             st.markdown("---")
-            
-            # Layout de Colunas Ajustado: [CEP Input] [Botão Buscar] [Vazio]
             col_cep_layout = st.columns([0.3, 0.2, 0.5]) 
-            
             with col_cep_layout[0]:
                 ncep = st.text_input("CEP", key="cad_cep", placeholder="00000-000")
-                
             with col_cep_layout[1]:
-                # Espaçador para alinhar o botão com o input (compensa o label do input)
                 st.markdown("<div style='height: 29px;'></div>", unsafe_allow_html=True)
-                # Botão 'secondary' é mais clean (fundo branco com borda) e ícone
                 if st.button("🔍 Buscar", key="btn_busca_cep_cad", use_container_width=True, type="secondary"):
                     d = buscar_endereco_cep(ncep)
                     if d:
@@ -462,7 +414,6 @@ def render_page(pagina_atual):
 
             st.markdown("---")
             st.caption("Financeiro")
-            
             f1, f2 = st.columns(2)
             with f1:
                 tpix = st.selectbox("Tipo Pix", TIPOS_CHAVE_PIX)
@@ -470,7 +421,6 @@ def render_page(pagina_atual):
                 if st.button("Adicionar Pix"):
                     st.session_state.temp_lists['cad_pix'].append(f"{tpix}: {cpix}")
                 for p in st.session_state.temp_lists['cad_pix']: st.markdown(f"🔹 {p}")
-            
             with f2:
                 bn = st.selectbox("Banco", LISTA_BANCOS)
                 b_ag = st.text_input("Agência")
@@ -484,11 +434,10 @@ def render_page(pagina_atual):
             
             st.write("")
             if st.button("SALVAR CADASTRO", use_container_width=True, type="primary"):
-                # Status Automático
+                # Status Auto
                 status_inicial = "Pendente"
                 if nsub == "Não Elegível": status_inicial = "Não Elegível"
                 if nsub == "Bloqueado": status_inicial = "Bloqueado"
-                if nsub == "Sem Margem": status_inicial = "Pendente" # Ou outra lógica se preferir
                 
                 dados = {
                     "nome": nn, "telefone": ntel, "cpf": nc, "tipo": nt, "sub_categoria": nsub,
@@ -537,19 +486,18 @@ def render_page(pagina_atual):
             ec1, ec2 = st.columns(2)
             enome = ec1.text_input("Nome", value=row['nome'])
             
-            # CPF com formatação na visualização da edição (mas sem bloqueio de digitação para não bugar edição rápida sem state complexo)
-            val_cpf_fmt = formatar_cpf(str(row['cpf']))
-            ecpf = ec2.text_input("CPF", value=val_cpf_fmt)
+            # CPF FMT
+            val_cpf = formatar_cpf(str(row['cpf']))
+            ecpf = ec2.text_input("CPF", value=val_cpf)
             
-            # --- ADICIONADO CAMPO TELEFONE NA EDIÇÃO ---
-            ec_tel, ec_tipo = st.columns(2)
-            val_tel_fmt = formatar_telefone(str(row['telefone']))
-            # Como a DB não salva formatado, formatamos na exibição. Se editar, salva o que tiver.
-            etel = ec_tel.text_input("Telefone", value=val_tel_fmt)
+            ec3, ec4 = st.columns(2)
+            # TEL FMT
+            val_tel = formatar_telefone(str(row['telefone']))
+            etel = ec3.text_input("Telefone", value=val_tel)
+
+            etipo = ec4.selectbox("Tipo", ["CLT", "INSS", "FGTS"], index=["CLT", "INSS", "FGTS"].index(row['tipo']) if row['tipo'] in ["CLT", "INSS", "FGTS"] else 0)
             
-            etipo = ec_tipo.selectbox("Tipo", ["CLT", "INSS", "FGTS"], index=["CLT", "INSS", "FGTS"].index(row['tipo']) if row['tipo'] in ["CLT", "INSS", "FGTS"] else 0)
-            
-            # --- LISTAS DINÂMICAS NA EDIÇÃO ---
+            # LISTAS DINÂMICAS NA EDIÇÃO
             if etipo == "INSS": opcoes_sub_ed = SUBS_INSS
             elif etipo == "FGTS": opcoes_sub_ed = SUBS_FGTS
             else: opcoes_sub_ed = SUBS_CLT
@@ -558,7 +506,6 @@ def render_page(pagina_atual):
             if row['sub_categoria'] in opcoes_sub_ed: idx_sub = opcoes_sub_ed.index(row['sub_categoria'])
             esub = st.selectbox("Situação", opcoes_sub_ed, index=idx_sub)
             
-            # Status
             lista_status = ["Pendente", "Não Elegível", "Bloqueado", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"]
             idx_st = 0
             if row['status_venda'] in lista_status: idx_st = lista_status.index(row['status_venda'])
@@ -581,13 +528,11 @@ def render_page(pagina_atual):
                     except: pass
                 edata_cons = st.date_input("Data Consulta", value=val_dc, format="DD/MM/YYYY")
 
-            # --- BUSCA CEP NA EDIÇÃO (Também melhorada) ---
             st.markdown("#### Endereço & Contato")
-            
-            col_ed_cep_layout = st.columns([0.3, 0.2, 0.5])
-            with col_ed_cep_layout[0]:
+            col_ed_cep, col_ed_btn, _ = st.columns([0.3, 0.2, 0.5])
+            with col_ed_cep:
                 ecep = st.text_input("CEP", value=str(row['cep']), key="e_cep_in")
-            with col_ed_cep_layout[1]:
+            with col_ed_btn:
                 st.markdown("<div style='height: 29px;'></div>", unsafe_allow_html=True)
                 if st.button("🔍 Buscar", key="btn_e_cep", use_container_width=True, type="secondary"):
                     d = buscar_endereco_cep(ecep)
@@ -615,7 +560,6 @@ def render_page(pagina_atual):
             
             c_up, c_del = st.columns([4, 1])
             if c_up.button("ATUALIZAR DADOS", type="primary"):
-                # Salva os dados (remove formatação antes de salvar se quiser manter limpo no banco, mas aqui vou salvar como está para simplificar)
                 db.update_cliente_completo(id_sel, {
                     "nome": enome, "cpf": ecpf, "telefone": etel, "tipo": etipo, "sub_categoria": esub, "status_venda": estat, 
                     "cep": ecep, "endereco": eend, "numero": enum, "bairro": ebai, "cidade": val_cid, "estado": val_uf, "nome_mae": emae,
