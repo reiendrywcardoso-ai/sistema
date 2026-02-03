@@ -7,45 +7,13 @@ import database as db
 
 # --- Helpers ---
 LISTA_BANCOS = [
-  "001 - Banco do Brasil",
-  "003 - Banco da Amazônia",
-  "004 - Banco do Nordeste",
-  "021 - Banestes",
-  "025 - Banco Alfa",
-  "033 - Santander",
-  "041 - Banrisul",
-  "070 - BRB",
-  "077 - Inter",
-  "082 - Banrisul",
-  "085 - Ailos",
-  "097 - Cresol",
-  "104 - Caixa",
-  "121 - Agibank",
-  "197 - Stone",
-  "208 - BTG Pactual",
-  "212 - Banco Original",
-  "237 - Bradesco",
-  "246 - ABC Brasil",
-  "260 - Nubank",
-  "290 - PagBank",
-  "318 - BMG",
-  "323 - Mercado Pago",
-  "336 - C6 Bank",
-  "341 - Itaú",
-  "364 - Gerencianet (Efí)",
-  "380 - PicPay",
-  "383 - Juno",
-  "399 - HSBC Brasil",
-  "422 - Safra",
-  "456 - Banco MUFG",
-  "464 - Banco Sumitomo Mitsui",
-  "473 - Banco Caixa Geral",
-  "654 - Neon",
-  "735 - Neon Pagamentos",
-  "745 - Citibank",
-  "748 - Sicredi",
-  "756 - Sicoob",
-  "Outro"
+  "001 - Banco do Brasil", "003 - Banco da Amazônia", "004 - Banco do Nordeste", "021 - Banestes", "025 - Banco Alfa",
+  "033 - Santander", "041 - Banrisul", "070 - BRB", "077 - Inter", "082 - Banrisul", "085 - Ailos", "097 - Cresol",
+  "104 - Caixa", "121 - Agibank", "197 - Stone", "208 - BTG Pactual", "212 - Banco Original", "237 - Bradesco",
+  "246 - ABC Brasil", "260 - Nubank", "290 - PagBank", "318 - BMG", "323 - Mercado Pago", "336 - C6 Bank", "341 - Itaú",
+  "364 - Gerencianet (Efí)", "380 - PicPay", "383 - Juno", "399 - HSBC Brasil", "422 - Safra", "456 - Banco MUFG",
+  "464 - Banco Sumitomo Mitsui", "473 - Banco Caixa Geral", "654 - Neon", "735 - Neon Pagamentos",
+  "745 - Citibank", "748 - Sicredi", "756 - Sicoob", "Outro"
 ]
 TIPOS_CHAVE_PIX = ["CPF", "Celular", "E-mail", "CNPJ", "Chave Aleatória"]
 TIPOS_CONTA = ["Corrente", "Poupança", "Pagamento", "Salário"]
@@ -61,7 +29,6 @@ def buscar_endereco_cep(cep):
     return None
 
 def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
-    # Cores inspiradas no seu arquivo TXT
     bg_icon = "#f1f5f9"; text_icon = "#475569"
     if cor_tema == "violet": bg_icon = "#f3e8ff"; text_icon = "#7c3aed"
     elif cor_tema == "green": bg_icon = "#dcfce7"; text_icon = "#16a34a"
@@ -81,9 +48,23 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     </div>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÃO PRINCIPAL AGORA ACEITA ARGUMENTO ---
 def render_page(pagina_atual):
-    # Inicializa variáveis de endereço
+    # --- LÓGICA DE LIMPEZA (CORREÇÃO DO ERRO) ---
+    # Verifica se há um pedido de limpeza pendente ANTES de criar os inputs
+    if st.session_state.get('limpar_formulario_cadastro', False):
+        campos_para_limpar = ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num', 'cad_cep', 
+                              'cad_nome', 'cad_cpf', 'cad_tel', 'cad_mae', 'cad_tipo', 'cad_sub']
+        for k in campos_para_limpar:
+            if k in st.session_state:
+                del st.session_state[k] # Deletar a chave reseta o input
+        
+        # Limpa as listas temporárias também
+        st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
+        
+        # Desliga a flag
+        st.session_state['limpar_formulario_cadastro'] = False
+        
+    # Inicializa variáveis de endereço se não existirem
     for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']:
         if k not in st.session_state: st.session_state[k] = ""
 
@@ -92,6 +73,8 @@ def render_page(pagina_atual):
         if v not in st.session_state: st.session_state[v] = ""
     if 'ed_nasc' not in st.session_state: st.session_state.ed_nasc = None
     if 'temp_lists' not in st.session_state: st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
+    if 'edit_pix_list' not in st.session_state: st.session_state.edit_pix_list = []
+    if 'edit_bank_list' not in st.session_state: st.session_state.edit_bank_list = []
 
     filtro_usuario = st.session_state.username 
     if st.session_state.role == 'admin':
@@ -249,7 +232,6 @@ def render_page(pagina_atual):
                 for p in st.session_state.temp_lists['cad_pix']: st.markdown(f"🔹 {p}")
             
             with f2:
-                # BANCOS COMPLETOS RESTAURADOS
                 bn = st.selectbox("Banco", LISTA_BANCOS)
                 b_ag = st.text_input("Agência")
                 b_cc = st.text_input("Conta")
@@ -272,9 +254,11 @@ def render_page(pagina_atual):
                 }
                 db.add_cliente(dados)
                 st.success("Salvo!")
-                st.session_state.temp_lists['cad_pix'] = []
-                st.session_state.temp_lists['cad_bank'] = []
-                for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']: st.session_state[k] = ""
+                
+                # --- AQUI ESTAVA O ERRO ---
+                # Em vez de tentar limpar direto, acionamos a flag para a próxima rodada
+                st.session_state['limpar_formulario_cadastro'] = True
+                
                 time.sleep(1); st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -345,7 +329,6 @@ def render_page(pagina_atual):
             st.markdown("#### Financeiro")
             ef1, ef2 = st.columns(2)
             with ef1:
-                # Pix
                 etpix = st.selectbox("Pix Tipo", TIPOS_CHAVE_PIX, key="ept")
                 ecpix = st.text_input("Chave", key="epc")
                 if st.button("Add Pix", key="bap"):
@@ -358,7 +341,6 @@ def render_page(pagina_atual):
                     if p: st.caption(p)
 
             with ef2:
-                # Banco
                 ebn = st.selectbox("Banco", LISTA_BANCOS, key="ebn")
                 ebag = st.text_input("Ag", key="eba")
                 ebcc = st.text_input("Cc", key="ebc")
@@ -386,6 +368,10 @@ def render_page(pagina_atual):
                 })
                 st.session_state.edit_pix_list = []
                 st.session_state.edit_bank_list = []
+                st.session_state.ed_end = ""
+                st.session_state.ed_bai = ""
+                st.session_state.ed_cid = ""
+                st.session_state.ed_uf = ""
                 st.success("Salvo!"); time.sleep(1); st.rerun()
             
             if c_del.button("🗑️"):
