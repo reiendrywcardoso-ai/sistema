@@ -9,99 +9,21 @@ import time
 st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🏦")
 db.init_db()
 
-# --- CSS MODERNO (Estilo da Imagem) ---
+# --- CSS LEVE (Apenas para esconder menus chatos e centralizar) ---
 st.markdown("""
     <style>
-    /* Fundo geral da página com gradiente moderno */
-    .stApp {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        background-attachment: fixed;
-    }
-    
-    /* Centralizar o container de login */
-    div[data-testid="stVerticalBlock"] > div {
-        display: flex;
-        justify_content: center;
-    }
-
-    /* O Cartão de Login (Caixa Branca) */
-    .login-container {
-        background-color: rgba(255, 255, 255, 0.95);
-        padding: 40px;
-        border-radius: 20px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        width: 100%;
-        max-width: 500px;
-        margin: auto;
-        text-align: center;
-    }
-
-    /* Títulos */
-    h1 {
-        color: #333 !important;
-        font-family: 'Helvetica Neue', sans-serif;
-        font-weight: 700;
-        font-size: 28px !important;
-        text-align: center;
-        margin-bottom: 5px !important;
-    }
-    
-    h3 {
-        color: #666 !important;
-        font-size: 16px !important;
-        text-align: center;
-        margin-top: 0 !important;
-        margin-bottom: 30px !important;
-        font-weight: 400;
-    }
-
-    /* Botões Principais (Entrar/Registrar) */
-    .stButton>button {
-        width: 100%;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 12px;
-        border-radius: 10px;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-    .stButton>button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
-        color: white;
-    }
-
-    /* Inputs (Caixas de texto) */
-    .stTextInput>div>div>input {
-        border-radius: 10px;
-        border: 1px solid #ddd;
-        padding: 10px;
-        background-color: #f9f9f9;
-    }
-
-    /* Abas */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        justify-content: center;
-        margin-bottom: 20px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 40px;
-        border-radius: 20px;
-        background-color: #f0f2f6;
-        padding: 0 20px;
-        border: none;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #764ba2 !important;
-        color: white !important;
-    }
-    
-    /* Esconder menu padrão do Streamlit na tela de login */
+    /* Esconder menu do Streamlit para parecer um App nativo */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    header {visibility: hidden;}
     
+    /* Estilo do container de login */
+    .login-box {
+        border: 1px solid #e6e6e6;
+        padding: 30px;
+        border-radius: 10px;
+        background-color: white;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -112,27 +34,24 @@ if 'username' not in st.session_state: st.session_state.username = ''
 if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
 
 # --- TELA DE LOGIN ---
-def login_screen():
-    # Usamos colunas vazias para centralizar o cartão no meio da tela
-    col_vazia_esq, col_centro, col_vazia_dir = st.columns([1, 2, 1])
+if not st.session_state.logged_in:
+    # Colunas para centralizar (1 parte vazia, 1 parte conteúdo, 1 parte vazia)
+    c1, c2, c3 = st.columns([1, 1.5, 1])
     
-    with col_centro:
-        # Início do Cartão Visual
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    with c2:
+        st.markdown("<h1 style='text-align: center;'>🏦 Gestão de Correspondente</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: grey;'>Faça login para acessar o sistema.</p>", unsafe_allow_html=True)
+        st.divider()
         
-        st.title("🔐 Login")
-        st.markdown("### Gestão de Correspondente")
+        # Abas simples e limpas
+        tab_login, tab_register = st.tabs(["🔐 Entrar", "📝 Criar Conta"])
         
-        tab_login, tab_register = st.tabs(["Acessar Conta", "Criar Nova Conta"])
-        
-        # --- ABA ENTRAR ---
         with tab_login:
-            st.write("") # Espaço
-            u = st.text_input("Usuário", placeholder="Seu nome de usuário")
-            p = st.text_input("Senha", type="password", placeholder="Sua senha")
+            u = st.text_input("Usuário")
+            p = st.text_input("Senha", type="password")
             
-            st.write("")
-            if st.button("ENTRAR AGORA"):
+            # Botão grande usando use_container_width
+            if st.button("ACESSAR SISTEMA", type="primary", use_container_width=True):
                 r = db.verificar_login(u, p)
                 if r['status'] == 'success':
                     if r['approved']:
@@ -140,50 +59,55 @@ def login_screen():
                         st.session_state.role = r['role']
                         st.session_state.username = u
                         st.rerun()
-                    else: st.warning("🔒 Seu cadastro aguarda aprovação.")
-                else: st.error(r['msg'])
+                    else:
+                        st.warning("🔒 Seu cadastro ainda está pendente de aprovação.")
+                else:
+                    st.error(r['msg'])
             
-            st.markdown("---")
-            with st.expander("Esqueci minha senha"):
+            st.markdown("")
+            with st.expander("Esqueci a minha senha"):
                 if st.session_state.recup_etapa == 0:
+                    st.caption("Informe seus dados para receber o código.")
                     rec_user = st.text_input("Seu Usuário", key="rec_u")
                     rec_email = st.text_input("Seu E-mail", key="rec_e")
-                    if st.button("Enviar Código"):
+                    
+                    if st.button("Enviar Código de Recuperação"):
                         res = db.iniciar_recuperacao_senha(rec_user, rec_email)
                         if res['status']:
                             email_utils.email_recuperacao(rec_email, res['codigo'])
                             st.session_state.recup_etapa = 1
                             st.session_state.rec_user_temp = rec_user
-                            st.success("Verifique seu e-mail!")
+                            st.success("Verifique seu e-mail (inclusive spam).")
                             time.sleep(1)
                             st.rerun()
                         else: st.error(res['msg'])
                 
                 elif st.session_state.recup_etapa == 1:
-                    st.info(f"Código enviado para: {st.session_state.rec_user_temp}")
-                    rec_codigo = st.text_input("Código")
+                    st.info(f"Código enviado para: **{st.session_state.rec_user_temp}**")
+                    rec_codigo = st.text_input("Digite o Código")
                     rec_nova_senha = st.text_input("Nova Senha", type="password", key="rec_np")
-                    if st.button("Confirmar Mudança"):
+                    
+                    c_voltar, c_confirmar = st.columns(2)
+                    if c_confirmar.button("Confirmar", type="primary"):
                         if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rec_codigo, rec_nova_senha):
                             st.success("Senha alterada! Faça login.")
                             st.session_state.recup_etapa = 0
                             time.sleep(2)
                             st.rerun()
-                        else: st.error("Código inválido.")
-                    if st.button("Cancelar"):
+                        else: st.error("Código incorreto.")
+                    
+                    if c_voltar.button("Cancelar"):
                         st.session_state.recup_etapa = 0
                         st.rerun()
 
-        # --- ABA REGISTRAR ---
         with tab_register:
-            st.write("")
-            nu = st.text_input("Criar Usuário", placeholder="Escolha um login", key="reg_u")
-            ne = st.text_input("Seu E-mail", placeholder="exemplo@email.com", key="reg_e")
-            np = st.text_input("Criar Senha", type="password", key="reg_p")
-            npc = st.text_input("Confirmar Senha", type="password", key="reg_pc")
+            st.caption("Preencha para solicitar acesso ao administrador.")
+            nu = st.text_input("Escolha um Usuário", key="reg_u")
+            ne = st.text_input("Seu E-mail", key="reg_e")
+            np = st.text_input("Escolha uma Senha", type="password", key="reg_p")
+            npc = st.text_input("Confirme a Senha", type="password", key="reg_pc")
             
-            st.write("")
-            if st.button("SOLICITAR ACESSO"):
+            if st.button("SOLICITAR CADASTRO", use_container_width=True):
                 if not nu or not ne or not np:
                     st.warning("Preencha todos os campos.")
                 elif np != npc:
@@ -191,44 +115,29 @@ def login_screen():
                 else:
                     res = db.registrar_usuario(nu, np, ne)
                     if res['status']:
-                        st.success(f"Sucesso! ID: #{res['id_gerado']}")
+                        st.success(f"Solicitado! ID: #{res['id_gerado']}")
                         st.info("Aguarde o e-mail de aprovação.")
                         email_utils.email_boas_vindas(nu, ne)
                     else: st.error(res['msg'])
 
-        st.markdown('</div>', unsafe_allow_html=True) # Fim do container
-
-# --- ROTEAMENTO ---
-if not st.session_state.logged_in:
-    login_screen()
+# --- SISTEMA LOGADO ---
 else:
-    # --- RESETAR CSS QUANDO LOGADO (Voltar ao normal) ---
-    # Injetamos um CSS mais leve para a área interna
-    st.markdown("""
-        <style>
-        .stApp {background: #ffffff;} 
-        /* Sidebar customizada */
-        section[data-testid="stSidebar"] {
-            background-color: #f8f9fa;
-            border-right: 1px solid #eee;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-
+    # Sidebar Limpa
     with st.sidebar:
-        st.write(f"👤 Olá, **{st.session_state.username}**")
-        st.caption(f"Perfil: {st.session_state.role}")
+        st.title("Menu")
+        st.write(f"👤 **{st.session_state.username}**")
         
         pg = "CRM"
         if st.session_state.role == 'admin':
-            pg = st.radio("Navegação", ["CRM", "Admin Panel"])
+            pg = st.radio("Navegar", ["CRM", "Painel Admin"])
             
         st.markdown("---")
-        if st.button("Sair / Logout"):
+        if st.button("Sair", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
             
+    # Carrega a página correta
     if pg == "CRM": 
         app_crm.render_crm()
-    elif pg == "Admin Panel": 
+    elif pg == "Painel Admin": 
         admin_panel.render_admin()
