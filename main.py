@@ -14,7 +14,7 @@ st.set_page_config(
 )
 db.init_db()
 
-# --- CSS SUPREMO (Visual idêntico ao CustomTkinter/Design) ---
+# --- CSS SUPREMO (Correção do Card "Quadrado") ---
 st.markdown("""
     <style>
     /* 1. Fonte Inter */
@@ -24,26 +24,36 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* 2. Fundo Geral (Roxo Sólido/Gradiente conforme imagem) */
+    /* 2. Fundo Geral (Roxo Sólido/Gradiente) */
     .stApp {
         background: linear-gradient(135deg, #8A56E8 0%, #7A4FE3 100%);
     }
 
-    /* 3. Esconder elementos nativos desnecessários */
+    /* 3. Esconder elementos nativos */
     #MainMenu, footer, header {visibility: hidden;}
 
-    /* 4. Card de Login Central */
-    .login-card {
-        background-color: #F3EFFE; /* Lilás bem claro do seu test.py */
+    /* 4. O "QUADRADO" (Card de Login) 
+       Aqui está o segredo: aplicamos o estilo diretamente na coluna do meio do Streamlit */
+    
+    div[data-testid="column"]:nth-of-type(2) > div[data-testid="stVerticalBlock"] {
+        background-color: #F3EFFE; /* Lilás bem claro (Card) */
         border-radius: 20px;
         padding: 40px;
         box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-        max-width: 400px;
-        margin: 0 auto; /* Centralizar */
+        border: 1px solid rgba(255,255,255,0.4);
+    }
+
+    /* Ajuste para telas pequenas (Mobile) - removemos o card fixo se empilhar */
+    @media (max-width: 640px) {
+        div[data-testid="column"]:nth-of-type(2) > div[data-testid="stVerticalBlock"] {
+            background-color: transparent;
+            box-shadow: none;
+            border: none;
+            padding: 10px;
+        }
     }
 
     /* 5. Inputs Estilizados */
-    /* Remove a borda padrão e aplica o fundo cinza/lilás */
     div[data-baseweb="input"] {
         background-color: #EBE5F5 !important;
         border: none !important;
@@ -57,7 +67,7 @@ st.markdown("""
         background-color: transparent !important;
         color: #333 !important;
     }
-    /* Esconde o label padrão do Streamlit para usarmos o nosso customizado */
+    /* Esconde o label padrão */
     .stTextInput label {
         display: none;
     }
@@ -80,7 +90,7 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* 7. Botão de Abas (Segmented Control) */
+    /* 7. Botão Secundário (Abas/Links) */
     div.stButton > button[kind="secondary"] {
         background-color: transparent !important;
         border: none !important;
@@ -92,8 +102,6 @@ st.markdown("""
         color: #7A4FE3 !important;
         background-color: rgba(122, 79, 227, 0.1) !important;
     }
-    /* Classe especial para aba ativa (injetada via python se necessário, 
-       mas aqui usaremos logica de renderização) */
 
     /* 8. Labels Customizados */
     .custom-label {
@@ -104,19 +112,16 @@ st.markdown("""
         display: block;
     }
 
-    /* 9. Sidebar Customizada */
+    /* 9. Sidebar Customizada (Apenas área logada) */
     section[data-testid="stSidebar"] {
         background-color: white;
         border-right: 1px solid #e2e8f0;
     }
     
-    /* Centralização vertical do Login */
-    div[data-testid="stVerticalBlock"] > div:has(div.login-card) {
-        display: flex;
-        justify-content: center;
-        padding-top: 5vh;
+    /* Centralização vertical */
+    div[data-testid="stVerticalBlock"] > div:has(div[data-testid="column"]) {
+        align-items: center;
     }
-
     </style>
 """, unsafe_allow_html=True)
 
@@ -129,44 +134,47 @@ if 'login_tab' not in st.session_state: st.session_state.login_tab = 'login'
 if 'register_subtab' not in st.session_state: st.session_state.register_subtab = 'criar'
 
 # ==========================================
-# TELA DE LOGIN (ESTILO CUSTOMTKINTER / IMAGEM)
+# TELA DE LOGIN
 # ==========================================
 if not st.session_state.logged_in:
     
-    # Colunas para centralizar horizontalmente (embora o CSS já ajude)
-    col_vazia_esq, col_login, col_vazia_dir = st.columns([1, 1.5, 1])
+    st.write("") # Espaçamento topo
+    st.write("") 
+    
+    # Layout de colunas para centralizar o CARD
+    # O CSS acima (item 4) vai pegar especificamente essa col_login (2ª coluna) e transformá-la no card
+    col_vazia_esq, col_login, col_vazia_dir = st.columns([1, 1.2, 1])
     
     with col_login:
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-
-        # 1. Ícone do Topo (Roxo com documento)
+        
+        # --- CONTEÚDO DO CARD ---
+        
+        # 1. Ícone do Topo
         st.markdown("""
             <div style="display: flex; justify-content: center; margin-bottom: 20px;">
-                <div style="width: 60px; height: 60px; background-color: #7A4FE3; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+                <div style="width: 60px; height: 60px; background-color: #7A4FE3; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 10px 20px rgba(122, 79, 227, 0.3);">
                     📄
                 </div>
             </div>
             <div style="text-align: center; margin-bottom: 30px;">
-                <h2 style="margin: 0; color: #1A1A1A; font-weight: 700; font-size: 22px;">Gestão Correspondente</h2>
-                <p style="margin: 5px 0 0 0; color: #7A7A7A; font-size: 12px;">Sistema CRM para Correspondentes Bancários</p>
+                <h2 style="margin: 0; color: #1A1A1A; font-weight: 700; font-size: 24px;">Gestão Correspondente</h2>
+                <p style="margin: 5px 0 0 0; color: #7A7A7A; font-size: 13px;">Sistema CRM para Correspondentes Bancários</p>
             </div>
         """, unsafe_allow_html=True)
 
         # 2. Abas (Simulando Segmented Button)
-        # Fundo cinza arredondado para as abas
-        st.markdown('<div style="background-color: #E6E0F5; padding: 4px; border-radius: 10px; margin-bottom: 25px;">', unsafe_allow_html=True)
+        st.markdown('<div style="background-color: #E6E0F5; padding: 4px; border-radius: 12px; margin-bottom: 25px;">', unsafe_allow_html=True)
         c_tab1, c_tab2 = st.columns(2)
         with c_tab1:
-            # Se ativo, botão branco com sombra. Se inativo, transparente.
             if st.session_state.login_tab == 'login':
-                st.markdown('<div style="background: white; border-radius: 8px; text-align: center; padding: 8px; color: #7A4FE3; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default;">Entrar</div>', unsafe_allow_html=True)
+                st.markdown('<div style="background: white; border-radius: 10px; text-align: center; padding: 10px; color: #7A4FE3; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default;">Entrar</div>', unsafe_allow_html=True)
             else:
                 if st.button("Entrar", key="tab_entrar", use_container_width=True, type="secondary"):
                     st.session_state.login_tab = 'login'
                     st.rerun()
         with c_tab2:
             if st.session_state.login_tab == 'register':
-                st.markdown('<div style="background: white; border-radius: 8px; text-align: center; padding: 8px; color: #7A4FE3; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default;">Registar</div>', unsafe_allow_html=True)
+                st.markdown('<div style="background: white; border-radius: 10px; text-align: center; padding: 10px; color: #7A4FE3; font-weight: bold; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default;">Registar</div>', unsafe_allow_html=True)
             else:
                 if st.button("Registar", key="tab_registrar", use_container_width=True, type="secondary"):
                     st.session_state.login_tab = 'register'
@@ -174,30 +182,27 @@ if not st.session_state.logged_in:
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- FORMULÁRIO DE LOGIN ---
+        # --- LOGIN ---
         if st.session_state.login_tab == 'login':
             
-            # Campo Usuário
             st.markdown('<span class="custom-label">Utilizador</span>', unsafe_allow_html=True)
+            # Layout Ícone + Input
             col_ico1, col_inp1 = st.columns([0.15, 0.85])
             with col_ico1:
-                st.markdown('<div style="height: 42px; background: #EBE5F5; border-radius: 10px 0 0 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">👤</div>', unsafe_allow_html=True)
+                st.markdown('<div style="height: 44px; background: #EBE5F5; border-radius: 10px 0 0 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">👤</div>', unsafe_allow_html=True)
             with col_inp1:
-                # CSS hack: margem negativa para colar no ícone
                 st.markdown('<style>div[data-testid="stTextInput"] { margin-left: -15px; }</style>', unsafe_allow_html=True)
                 u = st.text_input("user_login", placeholder="Seu nome de utilizador", label_visibility="collapsed")
 
             st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
 
-            # Campo Senha
             st.markdown('<span class="custom-label">Senha</span>', unsafe_allow_html=True)
             col_ico2, col_inp2 = st.columns([0.15, 0.85])
             with col_ico2:
-                st.markdown('<div style="height: 42px; background: #EBE5F5; border-radius: 10px 0 0 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">🔒</div>', unsafe_allow_html=True)
+                st.markdown('<div style="height: 44px; background: #EBE5F5; border-radius: 10px 0 0 10px; display: flex; align-items: center; justify-content: center; font-size: 18px;">🔒</div>', unsafe_allow_html=True)
             with col_inp2:
                 p = st.text_input("pass_login", type="password", placeholder="••••••••", label_visibility="collapsed")
 
-            # Link Esqueci Senha
             st.markdown('<div style="text-align: right; margin-top: 5px; margin-bottom: 20px;">', unsafe_allow_html=True)
             if st.button("Esqueceu a senha?", key="link_recuperar_top", type="secondary"):
                 st.session_state.login_tab = 'register'
@@ -205,7 +210,6 @@ if not st.session_state.logged_in:
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
-            # Botão Entrar
             if st.button("Entrar   →", type="primary", use_container_width=True):
                 if u and p:
                     r = db.verificar_login(u, p)
@@ -215,14 +219,11 @@ if not st.session_state.logged_in:
                             st.session_state.role = r['role']
                             st.session_state.username = u
                             st.rerun()
-                        else:
-                            st.warning("🔒 Aguardando aprovação do admin.")
-                    else:
-                        st.error(r['msg'])
-                else:
-                    st.warning("Preencha todos os campos.")
+                        else: st.warning("🔒 Aguardando aprovação.")
+                    else: st.error(r['msg'])
+                else: st.warning("Preencha todos os campos.")
 
-        # --- FORMULÁRIO DE REGISTRO / RECUPERAÇÃO ---
+        # --- REGISTRO / RECUPERAÇÃO ---
         else:
             if st.session_state.register_subtab == 'criar':
                 st.markdown('<span class="custom-label">Novo Usuário</span>', unsafe_allow_html=True)
@@ -235,28 +236,25 @@ if not st.session_state.logged_in:
                 
                 st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
                 
-                c_p1, c_p2 = st.columns(2)
-                with c_p1:
+                c1, c2 = st.columns(2)
+                with c1:
                     st.markdown('<span class="custom-label">Senha</span>', unsafe_allow_html=True)
                     np = st.text_input("reg_pass", type="password", label_visibility="collapsed")
-                with c_p2:
+                with c2:
                     st.markdown('<span class="custom-label">Confirmar</span>', unsafe_allow_html=True)
                     npc = st.text_input("reg_pass_conf", type="password", label_visibility="collapsed")
 
                 st.markdown('<div style="height: 20px;"></div>', unsafe_allow_html=True)
 
                 if st.button("Criar Conta", type="primary", use_container_width=True):
-                    if np != npc:
-                        st.error("Senhas não conferem.")
-                    elif not all([nu, ne, np, npc]):
-                        st.error("Preencha tudo.")
+                    if np != npc: st.error("Senhas não conferem.")
+                    elif not all([nu, ne, np, npc]): st.error("Preencha tudo.")
                     else:
                         res = db.registrar_usuario(nu, np, ne)
                         if res['status']:
                             st.success(f"Conta criada! ID: {res['id_gerado']}")
                             email_utils.email_boas_vindas(nu, ne)
-                        else:
-                            st.error(res['msg'])
+                        else: st.error(res['msg'])
                 
                 st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
                 if st.button("Já tenho conta", type="secondary", use_container_width=True):
@@ -265,7 +263,6 @@ if not st.session_state.logged_in:
 
             elif st.session_state.register_subtab == 'recuperar':
                 st.markdown("##### Recuperar Senha")
-                
                 if st.session_state.recup_etapa == 0:
                     st.markdown('<span class="custom-label">Usuário</span>', unsafe_allow_html=True)
                     ru = st.text_input("rec_user", label_visibility="collapsed")
@@ -280,41 +277,33 @@ if not st.session_state.logged_in:
                             st.session_state.recup_etapa = 1
                             st.session_state.rec_user_temp = ru
                             st.success("Verifique seu e-mail!")
-                            time.sleep(1)
-                            st.rerun()
+                            time.sleep(1); st.rerun()
                         else: st.error(res['msg'])
-                        
                 else:
                     st.info("Código enviado!")
                     rc = st.text_input("Código", placeholder="123456")
                     rn = st.text_input("Nova Senha", type="password")
-                    
                     if st.button("Alterar Senha", type="primary", use_container_width=True):
                         if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
-                            st.success("Sucesso! Faça login.")
-                            time.sleep(1)
-                            st.session_state.login_tab = 'login'
-                            st.session_state.recup_etapa = 0
-                            st.rerun()
+                            st.success("Sucesso! Faça login."); time.sleep(1)
+                            st.session_state.login_tab = 'login'; st.session_state.recup_etapa = 0; st.rerun()
                         else: st.error("Erro ao alterar.")
-
+                
                 if st.button("Voltar", type="secondary"):
-                    st.session_state.login_tab = 'login'
-                    st.session_state.register_subtab = 'criar'
-                    st.rerun()
+                    st.session_state.login_tab = 'login'; st.session_state.register_subtab = 'criar'; st.rerun()
 
-        # Footer
         st.markdown("""
             <div style="text-align: center; margin-top: 30px; color: #999; font-size: 11px;">
                 EDWCRED © 2024 • Sistema de Gestão
             </div>
-        </div>
-        """, unsafe_allow_html=True) # Fecha login-card
+        """, unsafe_allow_html=True)
 
 # ==========================================
-# ÁREA LOGADA (MANTIDA IGUAL)
+# ÁREA LOGADA
 # ==========================================
 else:
+    # 9. Sidebar Customizada (CSS remove o fundo roxo da sidebar se vazar)
+    # Mas aqui definimos o conteúdo
     with st.sidebar:
         st.markdown(f"""
         <div style="display: flex; align-items: center; gap: 12px; padding: 12px; margin-bottom: 24px; border: 1px solid #f1f5f9; border-radius: 12px; background: #ffffff;">
