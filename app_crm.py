@@ -21,6 +21,7 @@ def buscar_endereco_cep(cep):
     return None
 
 def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
+    # Cores inspiradas no seu arquivo TXT
     bg_icon = "#f1f5f9"; text_icon = "#475569"
     if cor_tema == "violet": bg_icon = "#f3e8ff"; text_icon = "#7c3aed"
     elif cor_tema == "green": bg_icon = "#dcfce7"; text_icon = "#16a34a"
@@ -40,13 +41,10 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     </div>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÃO PRINCIPAL AGORA ACEITA ARGUMENTO ---
 def render_page(pagina_atual):
-    
-    # Inicializações obrigatórias
-    campos_endereco = ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf']
-    for campo in campos_endereco:
-        if campo not in st.session_state: st.session_state[campo] = ""
+    # Inicializa variáveis de endereço
+    for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']:
+        if k not in st.session_state: st.session_state[k] = ""
 
     vars_ed = ['ed_nome', 'ed_cpf', 'ed_tel', 'ed_tipo', 'ed_sub', 'ed_stat', 'ed_cep', 'ed_end', 'ed_num', 'ed_bai', 'ed_cid', 'ed_uf', 'ed_mae', 'ed_pix_str', 'ed_bank_str', 'ed_nota']
     for v in vars_ed:
@@ -54,10 +52,8 @@ def render_page(pagina_atual):
     if 'ed_nasc' not in st.session_state: st.session_state.ed_nasc = None
     if 'temp_lists' not in st.session_state: st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
 
-    # Carrega dados
     filtro_usuario = st.session_state.username 
     if st.session_state.role == 'admin':
-        # Se for admin, mostra o filtro na sidebar abaixo do menu
         st.sidebar.markdown("---")
         st.sidebar.markdown("**Filtro Admin**")
         lista_users = ["Todos"] + db.get_lista_nomes_usuarios()
@@ -65,7 +61,6 @@ def render_page(pagina_atual):
     
     df = db.get_clientes(filtro_usuario)
     
-    # Título da Página (Diferente para cada uma)
     if pagina_atual == "Dashboard":
         st.markdown(f"## Olá, {st.session_state.username}")
         st.markdown("<p style='color: #64748b;'>Visão geral da sua carteira hoje.</p>", unsafe_allow_html=True)
@@ -74,7 +69,7 @@ def render_page(pagina_atual):
     elif pagina_atual == "Novo Cadastro":
         st.markdown("## Novo Cadastro")
 
-    st.write("") # Espaço
+    st.write("") 
 
     # ==========================
     # DASHBOARD
@@ -190,20 +185,20 @@ def render_page(pagina_atual):
                         st.rerun()
                     else: st.error("CEP inválido")
 
-            # ENDEREÇO
             st.markdown("---")
             e1, e2 = st.columns([3, 1])
-            nrua = e1.text_input("Endereço", value=st.session_state.cad_rua, key="in_rua")
+            nrua = e1.text_input("Endereço", key="cad_rua")
             nnum = e2.text_input("Número", key="cad_num")
             
             e3, e4, e5 = st.columns(3)
-            nbai = e3.text_input("Bairro", value=st.session_state.cad_bairro, key="in_bairro")
-            ncid = e4.text_input("Cidade", value=st.session_state.cad_cid, key="in_cid")
-            nuf = e5.text_input("UF", value=st.session_state.cad_uf, key="in_uf")
+            nbai = e3.text_input("Bairro", key="cad_bairro")
+            ncid = e4.text_input("Cidade", key="cad_cid")
+            nuf = e5.text_input("UF", key="cad_uf")
             nmae = st.text_input("Nome da Mãe", key="cad_mae")
 
             st.markdown("---")
             st.caption("Financeiro")
+            
             f1, f2 = st.columns(2)
             with f1:
                 tpix = st.selectbox("Tipo Pix", TIPOS_CHAVE_PIX)
@@ -237,7 +232,7 @@ def render_page(pagina_atual):
                 st.success("Salvo!")
                 st.session_state.temp_lists['cad_pix'] = []
                 st.session_state.temp_lists['cad_bank'] = []
-                for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf']: st.session_state[k] = ""
+                for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']: st.session_state[k] = ""
                 time.sleep(1); st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -321,12 +316,13 @@ def render_page(pagina_atual):
                     if p: st.caption(p)
 
             with ef2:
-                # Banco
+                # Banco (Completo na Edição também)
                 ebn = st.selectbox("Banco", LISTA_BANCOS, key="ebn")
                 ebag = st.text_input("Ag", key="eba")
                 ebcc = st.text_input("Cc", key="ebc")
+                ebtp = st.selectbox("Tipo", TIPOS_CONTA, key="ebtp")
                 if st.button("Add Banco", key="bab"):
-                    st.session_state.edit_bank_list.append(f"{ebn} Ag:{ebag} Cc:{ebcc}")
+                    st.session_state.edit_bank_list.append(f"{ebn} | Ag:{ebag} Cc:{ebcc} ({ebtp})")
                 
                 bank_db = str(row['dados_bancarios']).split(" || ")
                 all_bank = bank_db + st.session_state.edit_bank_list

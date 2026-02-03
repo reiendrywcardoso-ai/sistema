@@ -6,29 +6,28 @@ import email_utils
 import time
 
 # --- Configuração Global ---
-# initial_sidebar_state="expanded" garante que a lateral comece aberta
 st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🟣", initial_sidebar_state="expanded")
 db.init_db()
 
-# --- CSS GLOBAL (Visual React/Lovable) ---
+# --- CSS GLOBAL (VISUAL REACT/LOVABLE CORRIGIDO) ---
 st.markdown("""
     <style>
+    /* Fonte Inter */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
-        color: #1e293b;
+        color: #1e293b; /* Slate-800 */
     }
 
-    /* Fundo da Aplicação */
     .stApp {
         background-color: #f8fafc; /* Slate-50 */
     }
 
-    /* Esconder menus padrões do topo, mas manter funcionalidade */
+    /* Esconder menus padrões */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    /* header {visibility: hidden;}  <-- Comentei para você ver o botão de fechar a lateral se quiser */
+    header {visibility: hidden;}
 
     /* Sidebar */
     section[data-testid="stSidebar"] {
@@ -36,43 +35,49 @@ st.markdown("""
         border-right: 1px solid #e2e8f0;
     }
 
-    /* Estilo do Radio Button na Sidebar para parecer Menu */
-    section[data-testid="stSidebar"] .stRadio > div {
-        gap: 0px;
-    }
-    
-    section[data-testid="stSidebar"] .stRadio label {
-        background-color: transparent;
-        border-radius: 0.5rem;
-        padding: 10px 15px;
-        color: #64748b;
-        font-weight: 500;
-        margin-bottom: 4px;
-        transition: all 0.2s;
-        border: 1px solid transparent;
-        cursor: pointer;
-    }
-
-    /* Item selecionado no menu lateral */
-    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label[data-checked="true"] {
-        background-color: #f3e8ff; /* Roxo Claro */
-        color: #7c3aed; /* Texto Roxo */
-        font-weight: 600;
-        border: 1px solid #e9d5ff;
-    }
-
-    /* Hover no menu */
-    section[data-testid="stSidebar"] .stRadio label:hover {
-        background-color: #f8fafc;
-        color: #7c3aed;
-    }
-
-    /* Esconde a bolinha do radio button */
-    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label div:first-child {
+    /* --- CORREÇÃO DO MENU LATERAL (CSS CRÍTICO) --- */
+    /* Remove bolinhas do radio button */
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label > div:first-child {
         display: none;
     }
+    
+    /* Estilo do botão do menu (Não selecionado) */
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label {
+        background-color: transparent;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        color: #64748b !important; /* Slate-500 - Garante que o texto apareça */
+        font-weight: 500;
+        cursor: pointer;
+        display: flex; /* Garante alinhamento */
+        width: 100%;
+    }
 
-    /* Cards Estilo Dashboard */
+    /* Hover (Passar o mouse) */
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label:hover {
+        background-color: #f1f5f9; /* Slate-100 */
+        color: #7c3aed !important;
+    }
+
+    /* Item SELECIONADO (Ativo) */
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label[data-checked="true"] {
+        background-color: #f5f3ff !important; /* Violet-50 */
+        color: #7c3aed !important; /* Violet-600 */
+        font-weight: 600;
+        border: 1px solid #ddd6fe; /* Violet-200 */
+    }
+    
+    /* Aumentar o tamanho do texto das opções */
+    section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] p {
+        font-size: 15px;
+    }
+
+    /* --- FIM DA CORREÇÃO DO MENU --- */
+
+    /* Cards Estilo React */
     .react-card {
         background-color: white;
         border: 1px solid #e2e8f0;
@@ -88,17 +93,18 @@ st.markdown("""
         color: white;
         border: none;
         border-radius: 0.5rem;
+        padding: 0.6rem 1.2rem;
         font-weight: 600;
     }
     
     /* Login Glass */
     .login-glass {
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.5);
         border-radius: 1.5rem;
         padding: 3rem;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -164,7 +170,7 @@ if not st.session_state.logged_in:
                     else: st.error(res['msg'])
         st.markdown('</div>', unsafe_allow_html=True)
 
-# --- ÁREA INTERNA (MENU LATERAL UNIFICADO) ---
+# --- ÁREA INTERNA (MENU UNIFICADO E VISÍVEL) ---
 else:
     with st.sidebar:
         # Card de Perfil
@@ -180,17 +186,14 @@ else:
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<p style='color: #94a3b8; font-size: 12px; font-weight: 600; padding-left: 5px; margin-bottom: 5px;'>MENU PRINCIPAL</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #94a3b8; font-size: 12px; font-weight: 600; padding-left: 5px; margin-bottom: 10px;'>MENU PRINCIPAL</p>", unsafe_allow_html=True)
         
         # --- DEFINIÇÃO DO MENU ---
-        # Opções padrões para todos
         opcoes_menu = ["📊 Dashboard", "👥 Clientes", "➕ Novo Cadastro"]
         
-        # Se for Admin, adiciona o painel
         if st.session_state.role == 'admin':
             opcoes_menu.append("🔒 Painel Admin")
             
-        # O Seletor (Radio) que parece menu
         escolha = st.radio("Navegação", opcoes_menu, label_visibility="collapsed")
             
         st.markdown("---")
@@ -198,16 +201,14 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # --- ROTEAMENTO DE PÁGINAS ---
-    # Removemos o "render_crm" genérico e chamamos a função passando a página escolhida
+    # --- ROTEAMENTO ---
     if escolha == "🔒 Painel Admin":
         admin_panel.render_admin()
     else:
-        # Mapeia os nomes com emojis para os nomes técnicos
-        pagina_map = {
+        # Mapeamento para o app_crm
+        mapa = {
             "📊 Dashboard": "Dashboard",
             "👥 Clientes": "Clientes",
             "➕ Novo Cadastro": "Novo Cadastro"
         }
-        # Chama o app_crm passando qual página deve abrir
-        app_crm.render_page(pagina_map[escolha])
+        app_crm.render_page(mapa[escolha])

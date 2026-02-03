@@ -14,14 +14,14 @@ def render_admin():
     c1, c2 = st.columns(2)
     with c1:
         st.markdown(f"""
-        <div class="dashboard-card" style="text-align: center;">
+        <div class="react-card" style="text-align: center;">
             <div style="font-size: 32px; font-weight: 700; color: #1e293b;">{len(df_all)}</div>
             <div style="color: #64748b; font-size: 14px;">Usuários Totais</div>
         </div>
         """, unsafe_allow_html=True)
     with c2:
         st.markdown(f"""
-        <div class="dashboard-card" style="text-align: center;">
+        <div class="react-card" style="text-align: center;">
             <div style="font-size: 32px; font-weight: 700; color: #f59e0b;">{len(df_pend)}</div>
             <div style="color: #64748b; font-size: 14px;">Pendentes</div>
         </div>
@@ -56,7 +56,7 @@ def render_admin():
                         db.deletar_usuario(row['username'])
                         st.rerun()
     
-    # ABA GERENCIAR COM EDIÇÃO
+    # ABA GERENCIAR COM EDIÇÃO (RESTAURADA)
     with tab2:
         st.dataframe(df_all, use_container_width=True, hide_index=True)
         
@@ -69,7 +69,7 @@ def render_admin():
             row_u = df_all[df_all['username'] == u_sel].iloc[0]
             
             with st.container():
-                st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+                st.markdown('<div class="react-card">', unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 nu = c1.text_input("Login", value=row_u['username'])
                 ne = c2.text_input("E-mail", value=row_u['email'])
@@ -88,9 +88,9 @@ def render_admin():
                         st.success("Removido."); time.sleep(1); st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # ABA CRIAR ACESSO (MANUAL)
+    # ABA CRIAR ACESSO (MANUAL) - RESTAURADA
     with tab3:
-        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        st.markdown('<div class="react-card">', unsafe_allow_html=True)
         st.write("Criar um usuário manualmente (já aprovado).")
         
         c_new1, c_new2 = st.columns(2)
