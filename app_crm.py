@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import requests
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import time
 import database as db 
 
@@ -17,6 +17,11 @@ LISTA_BANCOS = [
 ]
 TIPOS_CHAVE_PIX = ["CPF", "Celular", "E-mail", "CNPJ", "Chave Aleatória"]
 TIPOS_CONTA = ["Corrente", "Poupança", "Pagamento", "Salário"]
+
+# Opções de Situação por Tipo
+SUBS_CLT = ["Margem Livre", "Sem Margem"]
+SUBS_INSS = ["Margem Livre", "Sem Margem", "Tem Port", "Sem Port", "Tem Refin", "Sem Refin"]
+SUBS_FGTS = ["Tem Saldo", "Sem Saldo", "Aniversário", "Antecipação Feita"]
 
 def buscar_endereco_cep(cep):
     cep = str(cep).replace("-", "").replace(".", "").strip()
@@ -34,6 +39,7 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     elif cor_tema == "green": bg_icon = "#dcfce7"; text_icon = "#16a34a"
     elif cor_tema == "blue": bg_icon = "#dbeafe"; text_icon = "#2563eb"
     elif cor_tema == "amber": bg_icon = "#ffedd5"; text_icon = "#ea580c"
+    elif cor_tema == "red": bg_icon = "#fee2e2"; text_icon = "#dc2626"
 
     st.markdown(f"""
     <div class="react-card" style="display: flex; justify-content: space-between; align-items: start;">
@@ -49,33 +55,28 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     """, unsafe_allow_html=True)
 
 def render_page(pagina_atual):
-    # --- LÓGICA DE LIMPEZA (CORREÇÃO DO ERRO) ---
-    # Verifica se há um pedido de limpeza pendente ANTES de criar os inputs
+    # --- 1. LÓGICA DE LIMPEZA DO FORMULÁRIO ---
     if st.session_state.get('limpar_formulario_cadastro', False):
-        campos_para_limpar = ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num', 'cad_cep', 
-                              'cad_nome', 'cad_cpf', 'cad_tel', 'cad_mae', 'cad_tipo', 'cad_sub']
-        for k in campos_para_limpar:
-            if k in st.session_state:
-                del st.session_state[k] # Deletar a chave reseta o input
+        keys_to_clear = [
+            'cad_nome', 'cad_cpf', 'cad_tipo', 'cad_tel', 'cad_sub', 
+            'cad_cep', 'cad_rua', 'cad_num', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_mae',
+            'cad_nasc', 'cad_termino', 'cad_consulta', 'cad_obs'
+        ]
+        for key in keys_to_clear:
+            if key in st.session_state:
+                del st.session_state[key]
         
-        # Limpa as listas temporárias também
         st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
-        
-        # Desliga a flag
         st.session_state['limpar_formulario_cadastro'] = False
-        
-    # Inicializa variáveis de endereço se não existirem
+
+    # Inicializa variáveis padrão
     for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']:
         if k not in st.session_state: st.session_state[k] = ""
-
-    vars_ed = ['ed_nome', 'ed_cpf', 'ed_tel', 'ed_tipo', 'ed_sub', 'ed_stat', 'ed_cep', 'ed_end', 'ed_num', 'ed_bai', 'ed_cid', 'ed_uf', 'ed_mae', 'ed_pix_str', 'ed_bank_str', 'ed_nota']
-    for v in vars_ed:
-        if v not in st.session_state: st.session_state[v] = ""
-    if 'ed_nasc' not in st.session_state: st.session_state.ed_nasc = None
     if 'temp_lists' not in st.session_state: st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
     if 'edit_pix_list' not in st.session_state: st.session_state.edit_pix_list = []
     if 'edit_bank_list' not in st.session_state: st.session_state.edit_bank_list = []
 
+    # --- FILTRO USUÁRIO ---
     filtro_usuario = st.session_state.username 
     if st.session_state.role == 'admin':
         st.sidebar.markdown("---")
@@ -85,6 +86,7 @@ def render_page(pagina_atual):
     
     df = db.get_clientes(filtro_usuario)
     
+    # Cabeçalho
     if pagina_atual == "Dashboard":
         st.markdown(f"## Olá, {st.session_state.username}")
         st.markdown("<p style='color: #64748b;'>Visão geral da sua carteira hoje.</p>", unsafe_allow_html=True)
@@ -96,33 +98,79 @@ def render_page(pagina_atual):
     st.write("") 
 
     # ==========================
-    # DASHBOARD
+    # DASHBOARD (LÓGICA COMPLEXA DE ALERTAS)
     # ==========================
     if pagina_atual == "Dashboard":
         total = len(df)
         pendentes = len(df[df['status_venda'] == 'Pendente'])
-        fechados = len(df[df['status_venda'].str.contains('Fechado', na=False)])
         
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: card_stats_react("Total Clientes", total, "Carteira ativa", "blue", "👥")
-        with c2: card_stats_react("Pendentes", pendentes, "Ação necessária", "amber", "⏳")
-        with c3: card_stats_react("Fechados", fechados, "Contratos finalizados", "green", "✅")
+        # Conta Não Elegíveis
+        nao_elegiveis = len(df[df['status_venda'] == 'Não Elegível'])
         
         hoje = datetime.now().date()
-        tarefas = []
-        if hoje.day in [10, 20, 26]:
-            qtd_fgts = len(df[(df['tipo']=='FGTS') & (df['sub_categoria'].isin(['Sem Saldo', 'Antecipação Feita']))])
-            if qtd_fgts > 0: tarefas.append(f"💰 {qtd_fgts} FGTS")
-        
-        def chk_niver(d):
-            try: x=pd.to_datetime(d); return x.day==hoje.day and x.month==hoje.month
-            except: return False
-        qtd_niver = len(df[df['data_nascimento'].apply(chk_niver)])
-        if qtd_niver > 0: tarefas.append(f"🎂 {qtd_niver} Aniversários")
+        dia_semana = hoje.weekday() # 0=Seg, 1=Ter, ..., 6=Dom
+        dia_mes = hoje.day
 
+        tarefas = []
+
+        # Loop em todos os clientes para verificar regras
+        for idx, row in df.iterrows():
+            nome = row['nome']
+            tipo = row['tipo']
+            sub = row['sub_categoria']
+            status = row['status_venda']
+            
+            # Converter datas
+            data_term = None
+            if row.get('data_termino'):
+                try: data_term = datetime.strptime(str(row['data_termino']), '%Y-%m-%d').date()
+                except: pass
+            
+            data_cons = None
+            if row.get('data_consulta'):
+                try: data_cons = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
+                except: pass
+
+            # --- REGRA 1: CLT / INSS - Sem Margem (Não Elegível) ---
+            # Avisar toda Terça-feira (weekday == 1) SE não tiver data de término vigente
+            if tipo in ['CLT', 'INSS'] and sub == "Sem Margem":
+                if data_term and data_term > hoje:
+                    pass # Tem contrato ativo, não avisar
+                else:
+                    if dia_semana == 1: # Terça-feira
+                        tarefas.append(f"🔎 Consultar Margem: {nome} ({tipo})")
+
+            # --- REGRA 2: INSS - Portabilidade e Refin ---
+            if tipo == 'INSS':
+                if sub == "Tem Port":
+                    tarefas.append(f"🔄 Fazer Portabilidade: {nome}")
+                if sub == "Tem Refin":
+                    tarefas.append(f"💲 Fazer Refin: {nome}")
+            
+            # --- REGRA 3: FGTS ---
+            if tipo == 'FGTS':
+                if sub == "Tem Saldo":
+                    tarefas.append(f"💰 FGTS com Saldo: {nome}")
+                elif sub == "Sem Saldo":
+                    # Avisar dia 10 E dias 20 até 28
+                    dias_aviso = [10, 20, 21, 22, 23, 24, 25, 26, 27, 28]
+                    if dia_mes in dias_aviso:
+                        tarefas.append(f"📅 Consultar Saldo FGTS: {nome}")
+                elif sub == "Aniversário":
+                    # Avisar na data específica configurada
+                    if data_cons and data_cons == hoje:
+                        tarefas.append(f"🎂 Aniversário FGTS Hoje: {nome}")
+
+        # Renderizar Cards
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: card_stats_react("Total Clientes", total, "Carteira ativa", "blue", "👥")
+        with c2: card_stats_react("Pendentes", pendentes, "Em andamento", "amber", "⏳")
+        with c3: card_stats_react("Não Elegíveis", nao_elegiveis, "Monitorando", "red", "🚫")
+        
         with c4: 
-            msg = f"{len(tarefas)} Alertas" if tarefas else "Tudo em dia"
-            card_stats_react("Tarefas Hoje", len(tarefas), msg, "violet", "📅")
+            msg = f"{len(tarefas)} Alertas" if tarefas else "Tudo limpo"
+            cor_alerta = "violet" if len(tarefas) > 0 else "green"
+            card_stats_react("Tarefas Hoje", len(tarefas), msg, cor_alerta, "🔔")
 
         st.write("")
         col_left, col_right = st.columns([2, 1])
@@ -130,10 +178,11 @@ def render_page(pagina_atual):
         with col_left:
             st.markdown("### Clientes Recentes")
             st.markdown('<div class="react-card" style="padding: 0; overflow: hidden;">', unsafe_allow_html=True)
+            # Cabeçalho da tabela
             st.markdown("""
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px 24px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase;">
                 <div>Cliente</div>
-                <div>Tipo</div>
+                <div>Situação</div>
                 <div>Data</div>
                 <div style="text-align: right;">Status</div>
             </div>
@@ -144,6 +193,7 @@ def render_page(pagina_atual):
                 for i, r in recentes.iterrows():
                     bg_st = "#f1f5f9"; cl_st = "#475569"
                     if "Pendente" in r['status_venda']: bg_st = "#fff7ed"; cl_st = "#c2410c"
+                    if "Não Elegível" in r['status_venda']: bg_st = "#fef2f2"; cl_st = "#991b1b"
                     if "Fechado" in r['status_venda']: bg_st = "#f0fdf4"; cl_st = "#15803d"
 
                     st.markdown(f"""
@@ -154,11 +204,11 @@ def render_page(pagina_atual):
                             </div>
                             <div>
                                 <div style="font-weight: 500; color: #0f172a; font-size: 14px;">{r['nome']}</div>
-                                <div style="color: #94a3b8; font-size: 12px;">{r['telefone']}</div>
+                                <div style="color: #94a3b8; font-size: 12px;">{r['tipo']}</div>
                             </div>
                         </div>
-                        <div style="color: #64748b; font-size: 14px;">{r['tipo']}</div>
-                        <div style="color: #64748b; font-size: 14px;">{r['criado_em']}</div>
+                        <div style="color: #64748b; font-size: 13px;">{r['sub_categoria']}</div>
+                        <div style="color: #64748b; font-size: 13px;">{r['criado_em']}</div>
                         <div style="text-align: right;">
                             <span style="background: {bg_st}; color: {cl_st}; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;">{r['status_venda']}</span>
                         </div>
@@ -169,17 +219,21 @@ def render_page(pagina_atual):
             st.markdown('</div>', unsafe_allow_html=True)
 
         with col_right:
-            st.markdown("### Lembretes")
-            st.markdown('<div class="react-card">', unsafe_allow_html=True)
+            st.markdown("### Lembretes do Dia")
+            st.markdown('<div class="react-card" style="max-height: 400px; overflow-y: auto;">', unsafe_allow_html=True)
             if tarefas:
                 for t in tarefas:
-                    st.markdown(f"<div style='margin-bottom: 10px; font-weight: 500;'>• {t}</div>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid #f1f5f9;">
+                        <div style="font-size: 14px; font-weight: 600; color: #475569;">{t}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
             else:
-                st.markdown("<p style='color: #94a3b8;'>Nenhum lembrete.</p>", unsafe_allow_html=True)
+                st.markdown("<p style='color: #94a3b8; text-align: center; margin-top: 20px;'>Nenhuma pendência hoje! 🎉</p>", unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================
-    # NOVO CADASTRO
+    # NOVO CADASTRO (LÓGICA DO FORMULÁRIO INTELIGENTE)
     # ==========================
     elif pagina_atual == "Novo Cadastro":
         with st.container():
@@ -189,27 +243,49 @@ def render_page(pagina_atual):
             with c1:
                 nn = st.text_input("Nome Completo", key="cad_nome")
                 nc = st.text_input("CPF", key="cad_cpf")
-                nt = st.selectbox("Tipo", ["INSS", "CLT", "FGTS"], key="cad_tipo")
-                nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31))
+                
+                # Tipo com auto-refresh para mudar as opções de Situação
+                nt = st.selectbox("Tipo", ["CLT", "INSS", "FGTS"], key="cad_tipo")
+                
+                nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc")
+            
             with c2:
                 ntel = st.text_input("Telefone", key="cad_tel")
-                nsub = st.selectbox("Situação", ["Margem Livre", "Sem Margem", "Tem Saldo", "Sem Saldo", "Antecipação Feita"], key="cad_sub")
                 
-                # BUSCA CEP
-                col_cep, col_btn = st.columns([0.7, 0.3])
-                ncep = col_cep.text_input("CEP", key="cad_cep")
-                if col_btn.button("🔍"):
-                    d = buscar_endereco_cep(ncep)
-                    if d:
-                        st.session_state.cad_rua = d.get('logradouro', '')
-                        st.session_state.cad_bairro = d.get('bairro', '')
-                        st.session_state.cad_cid = d.get('localidade', '')
-                        st.session_state.cad_uf = d.get('uf', '')
-                        st.toast("Endereço encontrado!")
-                        st.rerun()
-                    else: st.error("CEP inválido")
+                # Lógica Dinâmica de Situação
+                opcoes_sub = SUBS_CLT
+                if nt == "INSS": opcoes_sub = SUBS_INSS
+                elif nt == "FGTS": opcoes_sub = SUBS_FGTS
+                
+                nsub = st.selectbox("Situação", opcoes_sub, key="cad_sub")
 
+                # Campos Condicionais de Data
+                data_termino = None
+                data_consulta = None
+
+                if nt == "CLT":
+                    st.caption("Contrato de Trabalho")
+                    data_termino = st.date_input("Data de Término (Opcional)", value=None, key="cad_termino", help="Se preenchido, não alertará sobre margem.")
+                
+                if nt == "FGTS" and nsub == "Aniversário":
+                    st.caption("Consulta Futura")
+                    data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data exata que o sistema avisará.")
+
+            # Busca CEP
             st.markdown("---")
+            col_cep, col_btn, col_res = st.columns([2, 1, 3])
+            ncep = col_cep.text_input("CEP", key="cad_cep")
+            if col_btn.button("🔍 Buscar CEP"):
+                d = buscar_endereco_cep(ncep)
+                if d:
+                    st.session_state.cad_rua = d.get('logradouro', '')
+                    st.session_state.cad_bairro = d.get('bairro', '')
+                    st.session_state.cad_cid = d.get('localidade', '')
+                    st.session_state.cad_uf = d.get('uf', '')
+                    st.toast("Endereço encontrado!")
+                    st.rerun()
+                else: st.error("CEP inválido")
+
             e1, e2 = st.columns([3, 1])
             nrua = e1.text_input("Endereço", key="cad_rua")
             nnum = e2.text_input("Número", key="cad_num")
@@ -240,23 +316,28 @@ def render_page(pagina_atual):
                     st.session_state.temp_lists['cad_bank'].append(f"{bn} | Ag: {b_ag} | Cc: {b_cc} ({b_tipo})")
                 for b in st.session_state.temp_lists['cad_bank']: st.markdown(f"🏦 {b}")
 
-            obs = st.text_area("Observações")
+            obs = st.text_area("Observações", key="cad_obs")
             
             st.write("")
-            if st.button("SALVAR CADASTRO", use_container_width=True):
+            if st.button("SALVAR CADASTRO", use_container_width=True, type="primary"):
+                # Define Status Automático
+                status_inicial = "Pendente"
+                if nsub == "Sem Margem": status_inicial = "Não Elegível"
+                
                 dados = {
                     "nome": nn, "telefone": ntel, "cpf": nc, "tipo": nt, "sub_categoria": nsub,
-                    "status_venda": "Pendente", "data_nascimento": nas, "notas": obs,
+                    "status_venda": status_inicial, "data_nascimento": nas, "notas": obs,
                     "cep": ncep, "endereco": nrua, "numero": nnum, "bairro": nbai, "cidade": ncid, "estado": nuf, "nome_mae": nmae,
                     "pix_chave": " | ".join(st.session_state.temp_lists['cad_pix']),
                     "dados_bancarios": " || ".join(st.session_state.temp_lists['cad_bank']),
-                    "usuario_responsavel": st.session_state.username
+                    "usuario_responsavel": st.session_state.username,
+                    "data_termino": data_termino if data_termino else "",
+                    "data_consulta": data_consulta if data_consulta else ""
                 }
                 db.add_cliente(dados)
-                st.success("Salvo!")
+                st.success("Salvo com sucesso!")
                 
-                # --- AQUI ESTAVA O ERRO ---
-                # Em vez de tentar limpar direto, acionamos a flag para a próxima rodada
+                # Ativa a flag de limpeza para a próxima renderização
                 st.session_state['limpar_formulario_cadastro'] = True
                 
                 time.sleep(1); st.rerun()
@@ -295,22 +376,41 @@ def render_page(pagina_atual):
             ecpf = ec2.text_input("CPF", value=str(row['cpf']))
             
             ec3, ec4 = st.columns(2)
-            etipo = ec3.selectbox("Tipo", ["INSS", "CLT", "FGTS"], index=["INSS", "CLT", "FGTS"].index(row['tipo']) if row['tipo'] in ["INSS", "CLT", "FGTS"] else 0)
-            estat = ec4.selectbox("Status", ["Pendente", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"], index=0)
+            etipo = ec3.selectbox("Tipo", ["CLT", "INSS", "FGTS"], index=["CLT", "INSS", "FGTS"].index(row['tipo']) if row['tipo'] in ["CLT", "INSS", "FGTS"] else 0)
             
-            st.markdown("#### Endereço")
+            # Sub-categoria dinâmica na edição também
+            opcoes_sub_ed = SUBS_CLT
+            if etipo == "INSS": opcoes_sub_ed = SUBS_INSS
+            elif etipo == "FGTS": opcoes_sub_ed = SUBS_FGTS
+            
+            idx_sub = 0
+            if row['sub_categoria'] in opcoes_sub_ed: idx_sub = opcoes_sub_ed.index(row['sub_categoria'])
+            esub = ec3.selectbox("Situação", opcoes_sub_ed, index=idx_sub)
+            
+            estat = ec4.selectbox("Status", ["Pendente", "Não Elegível", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"], 
+                                  index=["Pendente", "Não Elegível", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"].index(row['status_venda']) if row['status_venda'] in ["Pendente", "Não Elegível", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"] else 0)
+
+            # Datas Extras na Edição
+            edata_term = None
+            if etipo == "CLT":
+                val_dt = None
+                if row.get('data_termino'):
+                    try: val_dt = datetime.strptime(str(row['data_termino']), '%Y-%m-%d').date()
+                    except: pass
+                edata_term = ec4.date_input("Data Término", value=val_dt)
+
+            edata_cons = None
+            if etipo == "FGTS" and esub == "Aniversário":
+                val_dc = None
+                if row.get('data_consulta'):
+                    try: val_dc = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
+                    except: pass
+                edata_cons = ec4.date_input("Data Consulta", value=val_dc)
+
+            st.markdown("#### Endereço & Contato")
             col_ecep, col_ebtn = st.columns([0.7, 0.3])
             ecep = col_ecep.text_input("CEP", value=str(row['cep']), key="e_cep_in")
-            if col_ebtn.button("🔍 Buscar", key="btn_e_cep"):
-                d = buscar_endereco_cep(ecep)
-                if d:
-                    st.session_state.ed_end = d.get('logradouro','')
-                    st.session_state.ed_bai = d.get('bairro','')
-                    st.session_state.ed_cid = d.get('localidade','')
-                    st.session_state.ed_uf = d.get('uf','')
-                    st.toast("Endereço Atualizado.")
-                    st.rerun()
-
+            
             val_end = st.session_state.ed_end if st.session_state.ed_end else str(row['endereco'])
             val_bai = st.session_state.ed_bai if st.session_state.ed_bai else str(row['bairro'])
             val_cid = st.session_state.ed_cid if st.session_state.ed_cid else str(row['cidade'])
@@ -319,55 +419,21 @@ def render_page(pagina_atual):
             ee1, ee2 = st.columns(2)
             eend = ee1.text_input("Endereço", value=val_end)
             enum = ee2.text_input("Número", value=str(row['numero']))
-            
-            ee3, ee4, ee5 = st.columns(3)
+            ee3, ee4 = st.columns(2)
             ebai = ee3.text_input("Bairro", value=val_bai)
-            ecid = ee4.text_input("Cidade", value=val_cid)
-            eest = ee5.text_input("UF", value=val_uf)
-            emae = st.text_input("Mãe", value=str(row['nome_mae']))
-
-            st.markdown("#### Financeiro")
-            ef1, ef2 = st.columns(2)
-            with ef1:
-                etpix = st.selectbox("Pix Tipo", TIPOS_CHAVE_PIX, key="ept")
-                ecpix = st.text_input("Chave", key="epc")
-                if st.button("Add Pix", key="bap"):
-                    st.session_state.edit_pix_list.append(f"{etpix}: {ecpix}")
-                
-                pix_db = str(row['pix_chave']).split(" | ")
-                all_pix = pix_db + st.session_state.edit_pix_list
-                st.write("**Pix Salvos:**")
-                for p in all_pix: 
-                    if p: st.caption(p)
-
-            with ef2:
-                ebn = st.selectbox("Banco", LISTA_BANCOS, key="ebn")
-                ebag = st.text_input("Ag", key="eba")
-                ebcc = st.text_input("Cc", key="ebc")
-                ebtp = st.selectbox("Tipo", TIPOS_CONTA, key="ebtp")
-                if st.button("Add Banco", key="bab"):
-                    st.session_state.edit_bank_list.append(f"{ebn} | Ag:{ebag} Cc:{ebcc} ({ebtp})")
-                
-                bank_db = str(row['dados_bancarios']).split(" || ")
-                all_bank = bank_db + st.session_state.edit_bank_list
-                st.write("**Bancos Salvos:**")
-                for b in all_bank:
-                    if b: st.caption(b)
+            emae = ee4.text_input("Mãe", value=str(row['nome_mae']))
 
             enota = st.text_area("Notas", value=row['notas'])
             
             c_up, c_del = st.columns([4, 1])
             if c_up.button("ATUALIZAR DADOS", type="primary"):
-                final_pix = " | ".join([p for p in all_pix if p])
-                final_bank = " || ".join([b for b in all_bank if b])
-                
                 db.update_cliente_completo(id_sel, {
-                    "nome": enome, "cpf": ecpf, "tipo": etipo, "status_venda": estat, 
-                    "cep": ecep, "endereco": eend, "numero": enum, "bairro": ebai, "cidade": ecid, "estado": eest, "nome_mae": emae,
-                    "pix_chave": final_pix, "dados_bancarios": final_bank, "notas": enota
+                    "nome": enome, "cpf": ecpf, "tipo": etipo, "sub_categoria": esub, "status_venda": estat, 
+                    "cep": ecep, "endereco": eend, "numero": enum, "bairro": ebai, "cidade": val_cid, "estado": val_uf, "nome_mae": emae,
+                    "notas": enota,
+                    "data_termino": edata_term if edata_term else "",
+                    "data_consulta": edata_cons if edata_cons else ""
                 })
-                st.session_state.edit_pix_list = []
-                st.session_state.edit_bank_list = []
                 st.session_state.ed_end = ""
                 st.session_state.ed_bai = ""
                 st.session_state.ed_cid = ""
