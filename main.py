@@ -19,7 +19,7 @@ if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'role' not in st.session_state: st.session_state.role = ''
 if 'username' not in st.session_state: st.session_state.username = ''
 if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
-if 'login_tab' not in st.session_state: st.session_state.login_tab = 'login'
+if 'login_view' not in st.session_state: st.session_state.login_view = 'login' # login ou recuperar
 
 # ==========================================
 # CSS SUPREMO (Baseado no seu script Shadcn/React)
@@ -179,83 +179,52 @@ if not st.session_state.logged_in:
             # Abas de Navegação
             tab_login, tab_register = st.tabs(["Entrar", "Registar"])
             
-            # --- ABA DE LOGIN ---
+            # --- ABA DE LOGIN (Com Lógica de Recuperação) ---
             with tab_login:
                 st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
                 
-                st.markdown('<span class="custom-label">Utilizador</span>', unsafe_allow_html=True)
-                u = st.text_input("utilizador_input", placeholder="Seu nome de utilizador", key="log_u", label_visibility="collapsed")
-                
-                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-                
-                st.markdown('<span class="custom-label">Senha</span>', unsafe_allow_html=True)
-                p = st.text_input("senha_input", type="password", placeholder="••••••••••", key="log_p", label_visibility="collapsed")
-                
-                st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-                
-                # Link Esqueceu a senha
-                if st.button("Esqueceu a senha?", key="link_recuperar"):
-                    st.info("Acesse a aba 'Registar' > 'Recuperar Senha'")
-                
-                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-                
-                if st.button("Entrar →", use_container_width=True, type="primary"):
-                    if u and p:
-                        r = db.verificar_login(u, p)
-                        if r['status'] == 'success':
-                            if r['approved']:
-                                st.session_state.logged_in = True
-                                st.session_state.role = r['role']
-                                st.session_state.username = u
-                                st.rerun()
-                            else: st.warning("🔒 Seu acesso ainda está pendente.")
-                        else: st.error(r['msg'])
-                    else: st.error("Preencha todos os campos")
-
-            # --- ABA DE REGISTRO ---
-            with tab_register:
-                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-                
-                sub_tab_novo, sub_tab_recuperar = st.tabs(["Criar Conta", "Recuperar Senha"])
-                
-                with sub_tab_novo:
+                # Se estiver no modo Login normal
+                if st.session_state.login_view == 'login':
+                    st.markdown('<span class="custom-label">Utilizador</span>', unsafe_allow_html=True)
+                    u = st.text_input("utilizador_input", placeholder="Seu nome de utilizador", key="log_u", label_visibility="collapsed")
+                    
+                    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                    
+                    st.markdown('<span class="custom-label">Senha</span>', unsafe_allow_html=True)
+                    p = st.text_input("senha_input", type="password", placeholder="••••••••••", key="log_p", label_visibility="collapsed")
+                    
                     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
                     
-                    c_reg1, c_reg2 = st.columns(2)
-                    with c_reg1:
-                        st.markdown('<span class="custom-label">Usuário</span>', unsafe_allow_html=True)
-                        nu = st.text_input("Novo Usuário", placeholder="Login", key="reg_u", label_visibility="collapsed")
-                    with c_reg2:
-                        st.markdown('<span class="custom-label">E-mail</span>', unsafe_allow_html=True)
-                        ne = st.text_input("E-mail", placeholder="email@exemplo.com", key="reg_e", label_visibility="collapsed")
+                    # Link Esqueceu a senha (Agora troca a view)
+                    if st.button("Esqueceu a senha?", key="link_recuperar"):
+                        st.session_state.login_view = 'recuperar'
+                        st.rerun()
                     
-                    c_reg3, c_reg4 = st.columns(2)
-                    with c_reg3:
-                        st.markdown('<span class="custom-label">Senha</span>', unsafe_allow_html=True)
-                        np = st.text_input("Senha", type="password", key="reg_p", label_visibility="collapsed")
-                    with c_reg4:
-                        st.markdown('<span class="custom-label">Confirmar</span>', unsafe_allow_html=True)
-                        npc = st.text_input("Confirmar Senha", type="password", key="reg_pc", label_visibility="collapsed")
+                    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
                     
-                    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-                    
-                    if st.button("Criar Minha Conta", use_container_width=True, type="primary"):
-                        if np != npc: st.error("Senhas não conferem.")
-                        elif not all([nu, ne, np, npc]): st.error("Preencha todos os campos")
-                        else:
-                            res = db.registrar_usuario(nu, np, ne)
-                            if res['status']:
-                                st.success(f"Conta criada! ID: {res['id_gerado']}")
-                                email_utils.email_boas_vindas(nu, ne)
-                            else: st.error(res['msg'])
+                    if st.button("Entrar →", use_container_width=True, type="primary"):
+                        if u and p:
+                            r = db.verificar_login(u, p)
+                            if r['status'] == 'success':
+                                if r['approved']:
+                                    st.session_state.logged_in = True
+                                    st.session_state.role = r['role']
+                                    st.session_state.username = u
+                                    st.rerun()
+                                else: st.warning("🔒 Seu acesso ainda está pendente.")
+                            else: st.error(r['msg'])
+                        else: st.error("Preencha todos os campos")
                 
-                with sub_tab_recuperar:
-                    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+                # Se estiver no modo Recuperar Senha
+                else:
+                    st.markdown("<h4 style='color: #475569; text-align: center; margin-bottom: 20px;'>Recuperar Acesso</h4>", unsafe_allow_html=True)
                     
                     if st.session_state.recup_etapa == 0:
                         st.info("Digite seus dados para receber o código.")
-                        ru = st.text_input("Seu Usuário", key="ru")
-                        re = st.text_input("Seu E-mail", key="re")
+                        ru = st.text_input("Seu Usuário", key="ru_main")
+                        re = st.text_input("Seu E-mail", key="re_main")
+                        
+                        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
                         if st.button("Enviar Código", use_container_width=True, type="primary"):
                             if ru and re:
                                 res = db.iniciar_recuperacao_senha(ru, re)
@@ -269,17 +238,56 @@ if not st.session_state.logged_in:
                             
                     elif st.session_state.recup_etapa == 1:
                         st.success("Verifique seu e-mail.")
-                        rc = st.text_input("Código", placeholder="123456")
-                        rn = st.text_input("Nova Senha", type="password")
+                        rc = st.text_input("Código", placeholder="123456", key="rc_main")
+                        rn = st.text_input("Nova Senha", type="password", key="rn_main")
                         
-                        c_b1, c_b2 = st.columns(2)
-                        if c_b1.button("Voltar", use_container_width=True):
-                            st.session_state.recup_etapa = 0; st.rerun()
-                        if c_b2.button("Alterar Senha", use_container_width=True, type="primary"):
+                        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+                        if st.button("Alterar Senha", use_container_width=True, type="primary"):
                             if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
                                 st.success("Senha atualizada!"); time.sleep(2)
-                                st.session_state.recup_etapa = 0; st.rerun()
+                                st.session_state.recup_etapa = 0
+                                st.session_state.login_view = 'login'
+                                st.rerun()
                             else: st.error("Erro ou código inválido.")
+                    
+                    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+                    # Botão Voltar para Login
+                    if st.button("Voltar ao Login", use_container_width=True, type="secondary"):
+                        st.session_state.login_view = 'login'
+                        st.session_state.recup_etapa = 0
+                        st.rerun()
+
+            # --- ABA DE REGISTRO ---
+            with tab_register:
+                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                
+                c_reg1, c_reg2 = st.columns(2)
+                with c_reg1:
+                    st.markdown('<span class="custom-label">Usuário</span>', unsafe_allow_html=True)
+                    nu = st.text_input("Novo Usuário", placeholder="Login", key="reg_u", label_visibility="collapsed")
+                with c_reg2:
+                    st.markdown('<span class="custom-label">E-mail</span>', unsafe_allow_html=True)
+                    ne = st.text_input("E-mail", placeholder="email@exemplo.com", key="reg_e", label_visibility="collapsed")
+                
+                c_reg3, c_reg4 = st.columns(2)
+                with c_reg3:
+                    st.markdown('<span class="custom-label">Senha</span>', unsafe_allow_html=True)
+                    np = st.text_input("Senha", type="password", key="reg_p", label_visibility="collapsed")
+                with c_reg4:
+                    st.markdown('<span class="custom-label">Confirmar</span>', unsafe_allow_html=True)
+                    npc = st.text_input("Confirmar Senha", type="password", key="reg_pc", label_visibility="collapsed")
+                
+                st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+                
+                if st.button("Criar Minha Conta", use_container_width=True, type="primary"):
+                    if np != npc: st.error("Senhas não conferem.")
+                    elif not all([nu, ne, np, npc]): st.error("Preencha todos os campos")
+                    else:
+                        res = db.registrar_usuario(nu, np, ne)
+                        if res['status']:
+                            st.success(f"Conta criada! ID: {res['id_gerado']}")
+                            email_utils.email_boas_vindas(nu, ne)
+                        else: st.error(res['msg'])
 
             # Rodapé (Ano 2026)
             st.markdown("""
