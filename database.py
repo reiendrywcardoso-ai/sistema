@@ -6,7 +6,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import random
 
 # --- CONFIGURAÇÃO ---
-# ID extraído do link que você mandou
 SPREADSHEET_ID = "1BsHA6adHib36GWijD_rwTg5btj94KegFoKf-ztKqTik"
 
 COLUNAS_CLIENTES = [
@@ -20,7 +19,7 @@ COLUNAS_USUARIOS = [
     "username", "password", "role", "approved", "email", "user_id", "recovery_code"
 ]
 
-# --- CONEXÃO COM GOOGLE SHEETS ---
+# --- CONEXÃO ---
 def get_connection():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
@@ -29,20 +28,15 @@ def get_connection():
         client = gspread.authorize(creds)
         return client
     except Exception as e:
-        st.error(f"Erro de autenticação nos segredos: {e}")
+        st.error(f"Erro de autenticação: {e}")
         st.stop()
 
 def get_worksheet(name):
     client = get_connection()
-    sh = None
-    
     try:
         sh = client.open_by_key(SPREADSHEET_ID)
-    except Exception as e:
-        st.error("❌ ERRO: O robô não conseguiu entrar na planilha.")
-        st.info("Verifique se você compartilhou a planilha com este e-mail exato:")
-        st.code("sistema@correspondente-gestao.iam.gserviceaccount.com")
-        st.write(f"Detalhe do erro: {e}")
+    except:
+        st.error("Erro ao abrir planilha pelo ID.")
         st.stop()
         
     try:
@@ -128,7 +122,7 @@ def delete_cliente(cliente_id):
         ws.delete_rows(cell.row)
     except: pass
 
-# --- USUÁRIOS ---
+# --- USUÁRIOS (LÓGICA NOVA AQUI) ---
 def verificar_login(username, password):
     ws = get_worksheet("usuarios")
     data = ws.get_all_records()
@@ -142,13 +136,35 @@ def verificar_login(username, password):
 def registrar_usuario(username, password, email, role='user', approved=0):
     ws = get_worksheet("usuarios")
     data = ws.get_all_records()
+    
+    # 1. VERIFICA SE JÁ EXISTE (DUPLICADO)
     for row in data:
-        if str(row['username']) == username: return {"status": False, "msg": "Usuário já existe"}
-        if str(row['email']) == email: return {"status": False, "msg": "E-mail já cadastrado"}
+        if str(row['username']).lower() == username.lower(): 
+            return {"status": False, "msg": "⚠️ Este nome de usuário já existe!"}
+        if str(row['email']).lower() == email.lower(): 
+            return {"status": False, "msg": "⚠️ Este e-mail já está registado no sistema!"}
             
+    # 2. GERA ID ÚNICO
     new_id = random.randint(100000, 999999)
+    
+    # 3. SALVA
     ws.append_row([username, password, role, approved, email, new_id, ""])
     return {"status": True, "msg": "Sucesso", "id_gerado": new_id}
+
+def update_usuario(old_username, new_data):
+    ws = get_worksheet("usuarios")
+    try:
+        cell = ws.find(str(old_username), in_column=1)
+        r = cell.row
+        updates = [
+            {'range': gspread.utils.rowcol_to_a1(r, 1), 'values': [[new_data['username']]]},
+            {'range': gspread.utils.rowcol_to_a1(r, 2), 'values': [[new_data['password']]]},
+            {'range': gspread.utils.rowcol_to_a1(r, 3), 'values': [[new_data['role']]]},
+            {'range': gspread.utils.rowcol_to_a1(r, 5), 'values': [[new_data['email']]]}
+        ]
+        ws.batch_update(updates)
+        return True
+    except: return False
 
 def get_usuarios_pendentes():
     ws = get_worksheet("usuarios")
@@ -180,22 +196,6 @@ def deletar_usuario(username):
         ws.delete_rows(cell.row)
     except: pass
 
-def update_usuario(old_username, new_data):
-    ws = get_worksheet("usuarios")
-    try:
-        cell = ws.find(str(old_username), in_column=1)
-        r = cell.row
-        # username=1, password=2, role=3, approved=4, email=5
-        updates = [
-            {'range': gspread.utils.rowcol_to_a1(r, 1), 'values': [[new_data['username']]]},
-            {'range': gspread.utils.rowcol_to_a1(r, 2), 'values': [[new_data['password']]]},
-            {'range': gspread.utils.rowcol_to_a1(r, 3), 'values': [[new_data['role']]]},
-            {'range': gspread.utils.rowcol_to_a1(r, 5), 'values': [[new_data['email']]]}
-        ]
-        ws.batch_update(updates)
-        return True
-    except: return False
-
 # --- RECUPERAÇÃO ---
 def iniciar_recuperacao_senha(username, email):
     ws = get_worksheet("usuarios")
@@ -207,7 +207,7 @@ def iniciar_recuperacao_senha(username, email):
             ws.update_cell(cell.row, 7, codigo)
             return {"status": True, "codigo": codigo}
     except: pass
-    return {"status": False, "msg": "Dados incorretos"}
+    return {"status": False, "msg": "Utilizador ou E-mail incorretos."}
 
 def finalizar_recuperacao_senha(username, codigo, nova_senha):
     ws = get_worksheet("usuarios")
