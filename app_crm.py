@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, date, timedelta
 import time
 import database as db 
+import re  # Import necessário para formatação
 
 # ==========================================
 # DEFINIÇÃO DAS LISTAS (FIXAS NO TOPO)
@@ -115,8 +116,40 @@ SUBS_FGTS = [
 ]
 
 # ==========================================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES AUXILIARES E DE FORMATAÇÃO
 # ==========================================
+def formatar_cpf(valor):
+    """Aplica a máscara 000.000.000-00"""
+    if not valor: return ""
+    valor = str(valor)
+    # Remove tudo que não for dígito
+    numeros = re.sub(r'\D', '', valor)
+    
+    if len(numeros) == 11:
+        return f"{numeros[:3]}.{numeros[3:6]}.{numeros[6:9]}-{numeros[9:]}"
+    return valor # Retorna original se não tiver 11 dígitos (para não bugar edição parcial)
+
+def formatar_telefone(valor):
+    """Aplica a máscara (00) 00000-0000 ou (00) 0000-0000"""
+    if not valor: return ""
+    valor = str(valor)
+    numeros = re.sub(r'\D', '', valor)
+    
+    if len(numeros) == 11: # Celular
+        return f"({numeros[:2]}) {numeros[2:7]}-{numeros[7:]}"
+    elif len(numeros) == 10: # Fixo
+        return f"({numeros[:2]}) {numeros[2:6]}-{numeros[6:]}"
+    return valor
+
+# Callbacks para aplicar a máscara na hora da digitação (on_change)
+def mascara_cad_cpf():
+    if 'cad_cpf' in st.session_state:
+        st.session_state.cad_cpf = formatar_cpf(st.session_state.cad_cpf)
+
+def mascara_cad_tel():
+    if 'cad_tel' in st.session_state:
+        st.session_state.cad_tel = formatar_telefone(st.session_state.cad_tel)
+
 def buscar_endereco_cep(cep):
     cep = str(cep).replace("-", "").replace(".", "").strip()
     if len(cep) == 8:
@@ -358,7 +391,9 @@ def render_page(pagina_atual):
             c1, c2 = st.columns(2)
             with c1:
                 nn = st.text_input("Nome Completo", key="cad_nome")
-                nc = st.text_input("CPF", key="cad_cpf")
+                
+                # --- CPF COM FORMATAÇÃO AUTOMÁTICA ---
+                nc = st.text_input("CPF", key="cad_cpf", placeholder="000.000.000-00", on_change=mascara_cad_cpf)
                 
                 # TIPO (Isso define o que aparece no próximo dropdown)
                 nt = st.selectbox("Tipo", ["CLT", "INSS", "FGTS"], key="cad_tipo")
@@ -367,7 +402,8 @@ def render_page(pagina_atual):
                 nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc", format="DD/MM/YYYY")
             
             with c2:
-                ntel = st.text_input("Telefone", key="cad_tel")
+                # --- TELEFONE COM FORMATAÇÃO AUTOMÁTICA ---
+                ntel = st.text_input("Telefone", key="cad_tel", placeholder="(00) 00000-0000", on_change=mascara_cad_tel)
                 
                 # --- DEFINIÇÃO DINÂMICA DAS OPÇÕES DE SITUAÇÃO ---
                 if nt == "INSS": 
@@ -500,10 +536,18 @@ def render_page(pagina_atual):
             
             ec1, ec2 = st.columns(2)
             enome = ec1.text_input("Nome", value=row['nome'])
-            ecpf = ec2.text_input("CPF", value=str(row['cpf']))
             
-            ec3, ec4 = st.columns(2)
-            etipo = ec3.selectbox("Tipo", ["CLT", "INSS", "FGTS"], index=["CLT", "INSS", "FGTS"].index(row['tipo']) if row['tipo'] in ["CLT", "INSS", "FGTS"] else 0)
+            # CPF com formatação na visualização da edição (mas sem bloqueio de digitação para não bugar edição rápida sem state complexo)
+            val_cpf_fmt = formatar_cpf(str(row['cpf']))
+            ecpf = ec2.text_input("CPF", value=val_cpf_fmt)
+            
+            # --- ADICIONADO CAMPO TELEFONE NA EDIÇÃO ---
+            ec_tel, ec_tipo = st.columns(2)
+            val_tel_fmt = formatar_telefone(str(row['telefone']))
+            # Como a DB não salva formatado, formatamos na exibição. Se editar, salva o que tiver.
+            etel = ec_tel.text_input("Telefone", value=val_tel_fmt)
+            
+            etipo = ec_tipo.selectbox("Tipo", ["CLT", "INSS", "FGTS"], index=["CLT", "INSS", "FGTS"].index(row['tipo']) if row['tipo'] in ["CLT", "INSS", "FGTS"] else 0)
             
             # --- LISTAS DINÂMICAS NA EDIÇÃO ---
             if etipo == "INSS": opcoes_sub_ed = SUBS_INSS
@@ -512,13 +556,13 @@ def render_page(pagina_atual):
             
             idx_sub = 0
             if row['sub_categoria'] in opcoes_sub_ed: idx_sub = opcoes_sub_ed.index(row['sub_categoria'])
-            esub = ec3.selectbox("Situação", opcoes_sub_ed, index=idx_sub)
+            esub = st.selectbox("Situação", opcoes_sub_ed, index=idx_sub)
             
             # Status
             lista_status = ["Pendente", "Não Elegível", "Bloqueado", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"]
             idx_st = 0
             if row['status_venda'] in lista_status: idx_st = lista_status.index(row['status_venda'])
-            estat = ec4.selectbox("Status", lista_status, index=idx_st)
+            estat = st.selectbox("Status", lista_status, index=idx_st)
 
             # Datas Extras
             edata_term = None
@@ -527,7 +571,7 @@ def render_page(pagina_atual):
                 if row.get('data_termino'):
                     try: val_dt = datetime.strptime(str(row['data_termino']), '%Y-%m-%d').date()
                     except: pass
-                edata_term = ec4.date_input("Data Término", value=val_dt, format="DD/MM/YYYY")
+                edata_term = st.date_input("Data Término", value=val_dt, format="DD/MM/YYYY")
 
             edata_cons = None
             if etipo == "FGTS" and esub == "Aniversário":
@@ -535,7 +579,7 @@ def render_page(pagina_atual):
                 if row.get('data_consulta'):
                     try: val_dc = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
                     except: pass
-                edata_cons = ec4.date_input("Data Consulta", value=val_dc, format="DD/MM/YYYY")
+                edata_cons = st.date_input("Data Consulta", value=val_dc, format="DD/MM/YYYY")
 
             # --- BUSCA CEP NA EDIÇÃO (Também melhorada) ---
             st.markdown("#### Endereço & Contato")
@@ -571,8 +615,9 @@ def render_page(pagina_atual):
             
             c_up, c_del = st.columns([4, 1])
             if c_up.button("ATUALIZAR DADOS", type="primary"):
+                # Salva os dados (remove formatação antes de salvar se quiser manter limpo no banco, mas aqui vou salvar como está para simplificar)
                 db.update_cliente_completo(id_sel, {
-                    "nome": enome, "cpf": ecpf, "tipo": etipo, "sub_categoria": esub, "status_venda": estat, 
+                    "nome": enome, "cpf": ecpf, "telefone": etel, "tipo": etipo, "sub_categoria": esub, "status_venda": estat, 
                     "cep": ecep, "endereco": eend, "numero": enum, "bairro": ebai, "cidade": val_cid, "estado": val_uf, "nome_mae": emae,
                     "notas": enota,
                     "data_termino": edata_term if edata_term else "",
