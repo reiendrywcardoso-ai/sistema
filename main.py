@@ -141,16 +141,6 @@ st.markdown("""
         border-bottom: 2px solid #7c3aed;
     }
 
-    /* 11. Expander limpo */
-    .streamlit-expanderHeader {
-        padding: 0 !important;
-        background: transparent !important;
-        border: none !important;
-    }
-    .streamlit-expanderContent {
-        padding: 0.5rem 0 0 0 !important;
-    }
-
     /* Títulos e Textos */
     h1, h2, h3 { font-family: 'Inter', sans-serif; letter-spacing: -0.025em; }
     
@@ -164,13 +154,9 @@ st.markdown("""
         text-decoration: none;
         cursor: pointer;
         transition: color 0.2s;
-        background: none;
-        border: none;
-        padding: 0;
     }
     .link-texto:hover {
         color: #7c3aed;
-        text-decoration: underline;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -197,87 +183,102 @@ if not st.session_state.logged_in:
         st.write("") 
         
         # INÍCIO DO CARD HTML
+        # INÍCIO DO CARD HTML
         st.markdown('<div class="shadcn-card">', unsafe_allow_html=True)
         
-        # Cabeçalho do Card (Igual à imagem)
+        # Cabeçalho do Card (com ícone igual à imagem)
         st.markdown("""
-        <div style="text-align: center; margin-bottom: 2.5rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="width: 72px; height: 72px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto; box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.2);">
+                <span style="font-size: 36px;">📱</span>
+            </div>
             <h1 style="font-size: 28px; font-weight: 700; color: #0f172a; margin-bottom: 0.5rem; letter-spacing: -0.025em;">Gestão Correspondente</h1>
             <p style="color: #64748b; font-size: 14px; margin: 0;">Sistema CRM para Correspondentes Bancários</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # Abas de Navegação (como na imagem)
-        tab_login, tab_register = st.tabs(["**Entrar**", "**Registar**"])
+        # Botões Entrar / Registar (igual à imagem)
+        col_entrar, col_registar = st.columns(2)
         
-        # --- ABA DE LOGIN ---
-        with tab_login:
-            st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+        with col_entrar:
+            if st.session_state.login_tab == 'login':
+                st.markdown("""
+                <div style="text-align: center; padding: 14px; background: white; border-bottom: 2px solid #7c3aed; 
+                            font-weight: 600; color: #0f172a; cursor: pointer; font-size: 15px;">
+                    Entrar
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                if st.button("Entrar", key="btn_entrar", use_container_width=True, type="secondary"):
+                    st.session_state.login_tab = 'login'
+                    st.rerun()
+        
+        with col_registar:
+            if st.session_state.login_tab == 'register':
+                st.markdown("""
+                <div style="text-align: center; padding: 14px; background: white; border-bottom: 2px solid #7c3aed; 
+                            font-weight: 600; color: #0f172a; cursor: pointer; font-size: 15px;">
+                    Registar
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                if st.button("Registar", key="btn_registar", use_container_width=True, type="secondary"):
+                    st.session_state.login_tab = 'register'
+                    st.rerun()
+        
+        st.markdown("<div style='height: 2.5rem;'></div>", unsafe_allow_html=True)
+        
+        # --- CONTEÚDO BASEADO NA SELEÇÃO ---
+        if st.session_state.login_tab == 'login':
+            # --- TELA DE LOGIN ---
             
-            # Labels dos campos (como na imagem)
+            # Label do campo Utilizador com ícone
             st.markdown("""
             <div style="margin-bottom: 0.5rem;">
                 <label style="font-size: 14px; font-weight: 500; color: #334155;">Utilizador</label>
             </div>
             """, unsafe_allow_html=True)
             
-            # Campo de usuário
-            u = st.text_input("utilizador_input", 
-                             placeholder="Seu nome de utilizador", 
-                             key="log_u", 
-                             label_visibility="collapsed")
+            # Campo de usuário com ícone
+            col_icon_user, col_input_user = st.columns([0.1, 0.9])
+            with col_icon_user:
+                st.markdown('<div style="padding-top: 12px; font-size: 20px;">👤</div>', unsafe_allow_html=True)
+            with col_input_user:
+                u = st.text_input("utilizador_input", 
+                                 placeholder="Seu nome de utilizador", 
+                                 key="log_u", 
+                                 label_visibility="collapsed")
             
             # Espaço entre campos
             st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
             
-            # Label da senha
+            # Label do campo Senha com ícone
             st.markdown("""
             <div style="margin-bottom: 0.5rem;">
                 <label style="font-size: 14px; font-weight: 500; color: #334155;">Senha</label>
             </div>
             """, unsafe_allow_html=True)
             
-            # Campo de senha
-            p = st.text_input("senha_input", 
-                             type="password", 
-                             placeholder="••••••••••", 
-                             key="log_p", 
-                             label_visibility="collapsed")
+            # Campo de senha com ícone
+            col_icon_pass, col_input_pass = st.columns([0.1, 0.9])
+            with col_icon_pass:
+                st.markdown('<div style="padding-top: 12px; font-size: 20px;">🔒</div>', unsafe_allow_html=True)
+            with col_input_pass:
+                p = st.text_input("senha_input", 
+                                 type="password", 
+                                 placeholder="••••••••", 
+                                 key="log_p", 
+                                 label_visibility="collapsed")
             
-            # Link "Esqueceu a senha?" (VOLTANDO AO FORMATO ORIGINAL COM EXPANDER)
-            st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
-            
-            # Usando expander como era antes
-            with st.expander("Esqueceu a senha?", expanded=False):
-                if st.session_state.recup_etapa == 0:
-                    st.info("Digite seu usuário e e-mail para recuperação")
-                    ru = st.text_input("Seu Usuário", key="ru")
-                    re = st.text_input("Seu E-mail", key="re")
-                    if st.button("Enviar Código de Recuperação", use_container_width=True):
-                        if ru and re:
-                            res = db.iniciar_recuperacao_senha(ru, re)
-                            if res['status']:
-                                email_utils.email_recuperacao(re, res['codigo'])
-                                st.session_state.recup_etapa = 1
-                                st.session_state.rec_user_temp = ru
-                                st.success("Código enviado!")
-                                time.sleep(1)
-                                st.rerun()
-                            else:
-                                st.error(res['msg'])
-                        else:
-                            st.error("Preencha ambos os campos")
-                elif st.session_state.recup_etapa == 1:
-                    rc = st.text_input("Código recebido")
-                    rn = st.text_input("Nova Senha", type="password")
-                    if st.button("Redefinir Senha", use_container_width=True):
-                        if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
-                            st.success("Senha atualizada!")
-                            st.session_state.recup_etapa = 0
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("Código inválido ou expirado")
+            # Link "Esqueceu a senha?" (como na imagem)
+            st.markdown("<div style='height: 0.75rem;'></div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div style="text-align: right;">
+                <a href="#" style="color: #8b5cf6; font-size: 13px; text-decoration: none; font-weight: 500;">
+                    Esqueceu a senha?
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
             
             # Botão de login principal
             st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
@@ -297,43 +298,79 @@ if not st.session_state.logged_in:
                 else:
                     st.error("Por favor, preencha todos os campos")
         
-        # --- ABA DE REGISTRO ---
-        with tab_register:
+        else:
+            # --- TELA DE REGISTRO ---
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             
-            # Subtítulos para Criar Conta (como na segunda imagem)
-            st.markdown("""
-            <div style="margin-bottom: 1.5rem;">
-                <h3 style="font-size: 16px; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">Criar Conta</h3>
-                <p style="color: #64748b; font-size: 13px; margin-bottom: 1rem;">Recuperar Senha</p>
-            </div>
-            """, unsafe_allow_html=True)
+            # Sub-aba para escolher entre registro ou recuperação
+            sub_tab_novo, sub_tab_recuperar = st.tabs(["Criar Conta", "Recuperar Senha"])
             
-            # Campos de registro em 2 colunas
-            c_reg1, c_reg2 = st.columns(2)
+            with sub_tab_novo:
+                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                
+                c_reg1, c_reg2 = st.columns(2)
+                nu = c_reg1.text_input("Novo Usuário", placeholder="Login", key="reg_u")
+                ne = c_reg2.text_input("E-mail", placeholder="seu@email.com", key="reg_e")
+                np = c_reg1.text_input("Senha", type="password", key="reg_p")
+                npc = c_reg2.text_input("Confirmar Senha", type="password", key="reg_pc")
+                
+                st.write("")
+                if st.button("Criar Minha Conta", use_container_width=True):
+                    if np != npc: 
+                        st.error("Senhas não conferem.")
+                    elif not all([nu, ne, np, npc]):
+                        st.error("Preencha todos os campos")
+                    else:
+                        res = db.registrar_usuario(nu, np, ne)
+                        if res['status']:
+                            st.success(f"Conta criada! ID: {res['id_gerado']}")
+                            email_utils.email_boas_vindas(nu, ne)
+                        else: 
+                            st.error(res['msg'])
             
-            # Primeira imagem mostra "Novo Usuário" e "Login" - vamos usar "Login" como placeholder
-            nu = c_reg1.text_input("Novo Usuário", placeholder="Login", key="reg_u")
-            ne = c_reg2.text_input("E-mail", placeholder="seu@email.com", key="reg_e")
-            
-            # Campos de senha
-            np = c_reg1.text_input("Senha", type="password", key="reg_p")
-            npc = c_reg2.text_input("Confirmar Senha", type="password", key="reg_pc")
-            
-            # Botão de criar conta
-            st.write("")
-            if st.button("Criar Minha Conta", use_container_width=True, type="primary"):
-                if np != npc: 
-                    st.error("Senhas não conferem.")
-                elif not all([nu, ne, np, npc]):
-                    st.error("Preencha todos os campos")
-                else:
-                    res = db.registrar_usuario(nu, np, ne)
-                    if res['status']:
-                        st.success(f"Conta criada! ID: {res['id_gerado']}")
-                        email_utils.email_boas_vindas(nu, ne)
-                    else: 
-                        st.error(res['msg'])
+            with sub_tab_recuperar:
+                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+                
+                if st.session_state.recup_etapa == 0:
+                    st.info("Digite seu usuário e e-mail para receber o código de recuperação")
+                    ru = st.text_input("Seu Usuário", key="ru")
+                    re = st.text_input("Seu E-mail", key="re")
+                    
+                    if st.button("Enviar Código de Recuperação", use_container_width=True):
+                        if ru and re:
+                            res = db.iniciar_recuperacao_senha(ru, re)
+                            if res['status']:
+                                email_utils.email_recuperacao(re, res['codigo'])
+                                st.session_state.recup_etapa = 1
+                                st.session_state.rec_user_temp = ru
+                                st.success("Código enviado para seu e-mail!")
+                            else:
+                                st.error(res['msg'])
+                        else:
+                            st.error("Preencha ambos os campos")
+                
+                elif st.session_state.recup_etapa == 1:
+                    st.success("Código enviado! Verifique seu e-mail.")
+                    rc = st.text_input("Código recebido", placeholder="Digite o código de 6 dígitos")
+                    rn = st.text_input("Nova Senha", type="password", placeholder="Nova senha")
+                    
+                    col_btn_rec = st.columns(2)
+                    with col_btn_rec[0]:
+                        if st.button("Voltar", use_container_width=True):
+                            st.session_state.recup_etapa = 0
+                            st.rerun()
+                    with col_btn_rec[1]:
+                        if st.button("Redefinir Senha", use_container_width=True, type="primary"):
+                            if rc and rn:
+                                if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
+                                    st.success("Senha atualizada com sucesso!")
+                                    time.sleep(2)
+                                    st.session_state.recup_etapa = 0
+                                    st.rerun()
+                                else:
+                                    st.error("Código inválido ou expirado")
+                            else:
+                                st.error("Preencha ambos os campos")
 
         # Footer (exatamente como na imagem)
         st.markdown("""
@@ -379,6 +416,7 @@ else:
             st.rerun()
 
     # --- ROTEAMENTO DE PÁGINAS ---
+    # Aqui está a correção: mapeamos os nomes do menu para os argumentos esperados pela função
     if escolha == "🔒 Painel Admin":
         admin_panel.render_admin()
     else:
