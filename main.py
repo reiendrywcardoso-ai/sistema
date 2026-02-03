@@ -141,6 +141,16 @@ st.markdown("""
         border-bottom: 2px solid #7c3aed;
     }
 
+    /* 11. Expander limpo */
+    .streamlit-expanderHeader {
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
+    }
+    .streamlit-expanderContent {
+        padding: 0.5rem 0 0 0 !important;
+    }
+
     /* Títulos e Textos */
     h1, h2, h3 { font-family: 'Inter', sans-serif; letter-spacing: -0.025em; }
     
@@ -154,9 +164,13 @@ st.markdown("""
         text-decoration: none;
         cursor: pointer;
         transition: color 0.2s;
+        background: none;
+        border: none;
+        padding: 0;
     }
     .link-texto:hover {
         color: #7c3aed;
+        text-decoration: underline;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -230,13 +244,40 @@ if not st.session_state.logged_in:
                              key="log_p", 
                              label_visibility="collapsed")
             
-            # Link "Esqueceu a senha?" (como na imagem)
+            # Link "Esqueceu a senha?" (VOLTANDO AO FORMATO ORIGINAL COM EXPANDER)
             st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
-            col_link = st.columns([1])
-            with col_link[0]:
-                if st.button("Esqueceu a senha?", key="link_recuperar"):
-                    st.session_state.recup_etapa = 0
-                    st.info("Recuperação de senha disponível na aba 'Registar'")
+            
+            # Usando expander como era antes
+            with st.expander("Esqueceu a senha?", expanded=False):
+                if st.session_state.recup_etapa == 0:
+                    st.info("Digite seu usuário e e-mail para recuperação")
+                    ru = st.text_input("Seu Usuário", key="ru")
+                    re = st.text_input("Seu E-mail", key="re")
+                    if st.button("Enviar Código de Recuperação", use_container_width=True):
+                        if ru and re:
+                            res = db.iniciar_recuperacao_senha(ru, re)
+                            if res['status']:
+                                email_utils.email_recuperacao(re, res['codigo'])
+                                st.session_state.recup_etapa = 1
+                                st.session_state.rec_user_temp = ru
+                                st.success("Código enviado!")
+                                time.sleep(1)
+                                st.rerun()
+                            else:
+                                st.error(res['msg'])
+                        else:
+                            st.error("Preencha ambos os campos")
+                elif st.session_state.recup_etapa == 1:
+                    rc = st.text_input("Código recebido")
+                    rn = st.text_input("Nova Senha", type="password")
+                    if st.button("Redefinir Senha", use_container_width=True):
+                        if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
+                            st.success("Senha atualizada!")
+                            st.session_state.recup_etapa = 0
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Código inválido ou expirado")
             
             # Botão de login principal
             st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
@@ -256,79 +297,43 @@ if not st.session_state.logged_in:
                 else:
                     st.error("Por favor, preencha todos os campos")
         
-        # --- ABA DE REGISTRO (com recuperação de senha) ---
+        # --- ABA DE REGISTRO ---
         with tab_register:
             st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
             
-            # Sub-aba para escolher entre registro ou recuperação
-            sub_tab_novo, sub_tab_recuperar = st.tabs(["Criar Conta", "Recuperar Senha"])
+            # Subtítulos para Criar Conta (como na segunda imagem)
+            st.markdown("""
+            <div style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: 16px; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">Criar Conta</h3>
+                <p style="color: #64748b; font-size: 13px; margin-bottom: 1rem;">Recuperar Senha</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            with sub_tab_novo:
-                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-                
-                c_reg1, c_reg2 = st.columns(2)
-                nu = c_reg1.text_input("Novo Usuário", placeholder="Login", key="reg_u")
-                ne = c_reg2.text_input("E-mail", placeholder="seu@email.com", key="reg_e")
-                np = c_reg1.text_input("Senha", type="password", key="reg_p")
-                npc = c_reg2.text_input("Confirmar Senha", type="password", key="reg_pc")
-                
-                st.write("")
-                if st.button("Criar Minha Conta", use_container_width=True):
-                    if np != npc: 
-                        st.error("Senhas não conferem.")
-                    elif not all([nu, ne, np, npc]):
-                        st.error("Preencha todos os campos")
-                    else:
-                        res = db.registrar_usuario(nu, np, ne)
-                        if res['status']:
-                            st.success(f"Conta criada! ID: {res['id_gerado']}")
-                            email_utils.email_boas_vindas(nu, ne)
-                        else: 
-                            st.error(res['msg'])
+            # Campos de registro em 2 colunas
+            c_reg1, c_reg2 = st.columns(2)
             
-            with sub_tab_recuperar:
-                st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-                
-                if st.session_state.recup_etapa == 0:
-                    st.info("Digite seu usuário e e-mail para receber o código de recuperação")
-                    ru = st.text_input("Seu Usuário", key="ru")
-                    re = st.text_input("Seu E-mail", key="re")
-                    
-                    if st.button("Enviar Código de Recuperação", use_container_width=True):
-                        if ru and re:
-                            res = db.iniciar_recuperacao_senha(ru, re)
-                            if res['status']:
-                                email_utils.email_recuperacao(re, res['codigo'])
-                                st.session_state.recup_etapa = 1
-                                st.session_state.rec_user_temp = ru
-                                st.success("Código enviado para seu e-mail!")
-                            else:
-                                st.error(res['msg'])
-                        else:
-                            st.error("Preencha ambos os campos")
-                
-                elif st.session_state.recup_etapa == 1:
-                    st.success("Código enviado! Verifique seu e-mail.")
-                    rc = st.text_input("Código recebido", placeholder="Digite o código de 6 dígitos")
-                    rn = st.text_input("Nova Senha", type="password", placeholder="Nova senha")
-                    
-                    col_btn_rec = st.columns(2)
-                    with col_btn_rec[0]:
-                        if st.button("Voltar", use_container_width=True):
-                            st.session_state.recup_etapa = 0
-                            st.rerun()
-                    with col_btn_rec[1]:
-                        if st.button("Redefinir Senha", use_container_width=True, type="primary"):
-                            if rc and rn:
-                                if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
-                                    st.success("Senha atualizada com sucesso!")
-                                    time.sleep(2)
-                                    st.session_state.recup_etapa = 0
-                                    st.rerun()
-                                else:
-                                    st.error("Código inválido ou expirado")
-                            else:
-                                st.error("Preencha ambos os campos")
+            # Primeira imagem mostra "Novo Usuário" e "Login" - vamos usar "Login" como placeholder
+            nu = c_reg1.text_input("Novo Usuário", placeholder="Login", key="reg_u")
+            ne = c_reg2.text_input("E-mail", placeholder="seu@email.com", key="reg_e")
+            
+            # Campos de senha
+            np = c_reg1.text_input("Senha", type="password", key="reg_p")
+            npc = c_reg2.text_input("Confirmar Senha", type="password", key="reg_pc")
+            
+            # Botão de criar conta
+            st.write("")
+            if st.button("Criar Minha Conta", use_container_width=True, type="primary"):
+                if np != npc: 
+                    st.error("Senhas não conferem.")
+                elif not all([nu, ne, np, npc]):
+                    st.error("Preencha todos os campos")
+                else:
+                    res = db.registrar_usuario(nu, np, ne)
+                    if res['status']:
+                        st.success(f"Conta criada! ID: {res['id_gerado']}")
+                        email_utils.email_boas_vindas(nu, ne)
+                    else: 
+                        st.error(res['msg'])
 
         # Footer (exatamente como na imagem)
         st.markdown("""
@@ -374,7 +379,6 @@ else:
             st.rerun()
 
     # --- ROTEAMENTO DE PÁGINAS ---
-    # Aqui está a correção: mapeamos os nomes do menu para os argumentos esperados pela função
     if escolha == "🔒 Painel Admin":
         admin_panel.render_admin()
     else:
