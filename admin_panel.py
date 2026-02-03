@@ -84,10 +84,9 @@ def render_admin():
                 
                 st.markdown("---")
                 if st.button("🗑️ Remover Acesso", key="btn_del_user"):
-                    if u_sel == 'admin': st.error("Não pode remover o admin principal.")
-                    else:
-                        db.deletar_usuario(u_sel)
-                        st.success("Removido."); time.sleep(1); st.rerun()
+                    # Removi a trava de segurança do admin principal
+                    db.deletar_usuario(u_sel)
+                    st.success("Removido."); time.sleep(1); st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
     # --- ABA CRIAR ACESSO (MANUAL) ---

@@ -6,7 +6,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 import random
 
 # --- CONFIGURAÇÃO ---
-# ID extraído do link que você mandou
 SPREADSHEET_ID = "1BsHA6adHib36GWijD_rwTg5btj94KegFoKf-ztKqTik"
 
 COLUNAS_CLIENTES = [
@@ -24,7 +23,6 @@ COLUNAS_USUARIOS = [
 def get_connection():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
-        # Tenta pegar dos segredos do Streamlit Cloud
         if "gcp_service_account" in st.secrets:
             creds_dict = dict(st.secrets["gcp_service_account"])
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -34,28 +32,21 @@ def get_connection():
             st.error("❌ ERRO: Chave do Google não encontrada nos Secrets.")
             st.stop()
     except Exception as e:
-        st.error(f"Erro de autenticação nos segredos: {e}")
+        st.error(f"Erro de autenticação: {e}")
         st.stop()
 
 def get_worksheet(name):
     client = get_connection()
-    sh = None
-    
-    # Tenta abrir direto pelo ID (Mais seguro que pelo nome)
     try:
         sh = client.open_by_key(SPREADSHEET_ID)
     except Exception as e:
-        st.error("❌ ERRO: O robô não conseguiu entrar na planilha.")
-        st.info("Verifique se você compartilhou a planilha com este e-mail exato:")
-        st.code("sistema@correspondente-gestao.iam.gserviceaccount.com")
-        st.write(f"Detalhe do erro: {e}")
+        st.error(f"Erro ao abrir planilha: {e}")
         st.stop()
         
     try:
         ws = sh.worksheet(name)
         return ws
     except:
-        # Se a aba não existir, cria ela
         try:
             ws = sh.add_worksheet(title=name, rows=1000, cols=30)
             if name == "clientes": ws.append_row(COLUNAS_CLIENTES)
@@ -68,17 +59,34 @@ def get_worksheet(name):
             st.stop()
 
 def init_db():
+    # Apenas verifica se conecta, não precisa cachear
     get_worksheet("clientes")
     get_worksheet("usuarios")
 
+# --- FUNÇÕES DE CACHE (LEITURA) ---
+# TTL=60 significa que os dados duram 60 segundos na memória antes de baixar do Google de novo
+@st.cache_data(ttl=60)
+def _fetch_all_data(sheet_name):
+    ws = get_worksheet(sheet_name)
+    return ws.get_all_records()
+
+def limpar_cache():
+    st.cache_data.clear()
+
 # --- CLIENTES ---
 def get_clientes(filtro_usuario=None):
-    ws = get_worksheet("clientes")
     try:
-        data = ws.get_all_records()
+        # Usa a função cacheada
+        data = _fetch_all_data("clientes")
         df = pd.DataFrame(data)
+        
         if df.empty: return pd.DataFrame(columns=COLUNAS_CLIENTES)
         
+        # Garante que as colunas existam
+        for col in COLUNAS_CLIENTES:
+            if col not in df.columns:
+                df[col] = ""
+
         if 'id' in df.columns:
             df['id'] = pd.to_numeric(df['id'], errors='coerce').fillna(0).astype(int)
 
@@ -90,7 +98,9 @@ def get_clientes(filtro_usuario=None):
 
 def add_cliente(dados):
     ws = get_worksheet("clientes")
-    all_data = ws.get_all_records()
+    # Para pegar o ID, precisamos ler, mas podemos forçar leitura direta aqui para garantir ID único
+    all_data = ws.get_all_records() 
+    
     if not all_data: new_id = 1
     else: 
         ids = [int(row['id']) for row in all_data if str(row['id']).isdigit()]
@@ -107,13 +117,7 @@ def add_cliente(dados):
         dados.get('usuario_responsavel', 'admin')
     ]
     ws.append_row(nova_linha)
-
-def update_status(cliente_id, novo_status):
-    ws = get_worksheet("clientes")
-    try:
-        cell = ws.find(str(cliente_id), in_column=1)
-        ws.update_cell(cell.row, 7, novo_status)
-    except: pass
+    limpar_cache() # Limpa o cache para o novo cliente aparecer na hora
 
 def update_cliente_completo(id_cliente, dados):
     ws = get_worksheet("clientes")
@@ -133,6 +137,7 @@ def update_cliente_completo(id_cliente, dados):
             if val is not None:
                 batch.append({'range': gspread.utils.rowcol_to_a1(row, col), 'values': [[val]]})
         ws.batch_update(batch)
+        limpar_cache() # Importante: Limpa cache após update
     except: pass
 
 def delete_cliente(cliente_id):
@@ -140,13 +145,19 @@ def delete_cliente(cliente_id):
     try:
         cell = ws.find(str(cliente_id), in_column=1)
         ws.delete_rows(cell.row)
+        limpar_cache()
     except: pass
 
 # --- USUÁRIOS ---
+def get_todos_usuarios():
+    # Usa cache para não bater na API toda hora
+    data = _fetch_all_data("usuarios")
+    return pd.DataFrame(data)
+
 def verificar_login(username, password):
-    ws = get_worksheet("usuarios")
+    # Otimizado: Baixa todos os usuários do cache e verifica em memória
     try:
-        data = ws.get_all_records()
+        data = _fetch_all_data("usuarios")
         for row in data:
             if str(row['username']) == username:
                 if str(row['password']) == password:
@@ -154,43 +165,37 @@ def verificar_login(username, password):
                 return {"status": "fail", "msg": "Senha incorreta"}
         return {"status": "fail", "msg": "Usuário não encontrado"}
     except Exception as e:
-        return {"status": "fail", "msg": f"Erro ao acessar usuários: {str(e)}"}
+        return {"status": "fail", "msg": f"Erro: {str(e)}"}
 
 def registrar_usuario(username, password, email, role='user', approved=0):
-    ws = get_worksheet("usuarios")
-    data = ws.get_all_records()
+    # Precisamos checar na hora se existe, então forçamos leitura atual ou usamos cache (cache é seguro aqui se TTL for baixo)
+    data = _fetch_all_data("usuarios") 
     for row in data:
         if str(row['username']) == username: return {"status": False, "msg": "Usuário já existe"}
         if str(row['email']) == email: return {"status": False, "msg": "E-mail já cadastrado"}
-            
+    
+    ws = get_worksheet("usuarios")       
     new_id = random.randint(100000, 999999)
     ws.append_row([username, password, role, approved, email, new_id, ""])
+    limpar_cache() # Limpa para o novo usuário poder logar/aparecer
     return {"status": True, "msg": "Sucesso", "id_gerado": new_id}
 
 def get_usuarios_pendentes():
-    ws = get_worksheet("usuarios")
-    data = ws.get_all_records()
-    df = pd.DataFrame(data)
+    df = get_todos_usuarios()
     if df.empty: return df
     return df[df['approved'].astype(str) == "0"]
 
-def get_todos_usuarios():
-    ws = get_worksheet("usuarios")
-    return pd.DataFrame(ws.get_all_records())
-
 def get_lista_nomes_usuarios():
-    ws = get_worksheet("usuarios")
-    try:
-        vals = ws.col_values(1)
-        return vals[1:] if len(vals) > 1 else []
-    except:
-        return []
+    df = get_todos_usuarios()
+    if df.empty: return []
+    return df['username'].tolist()
 
 def aprovar_usuario(username):
     ws = get_worksheet("usuarios")
     try:
         cell = ws.find(username, in_column=1)
         ws.update_cell(cell.row, 4, 1)
+        limpar_cache()
     except: pass
 
 def deletar_usuario(username):
@@ -198,6 +203,7 @@ def deletar_usuario(username):
     try:
         cell = ws.find(username, in_column=1)
         ws.delete_rows(cell.row)
+        limpar_cache()
     except: pass
 
 def update_usuario(old_username, new_data):
@@ -212,6 +218,7 @@ def update_usuario(old_username, new_data):
             {'range': gspread.utils.rowcol_to_a1(r, 5), 'values': [[new_data['email']]]}
         ]
         ws.batch_update(updates)
+        limpar_cache()
         return True
     except: return False
 
@@ -221,6 +228,7 @@ def iniciar_recuperacao_senha(username, email):
     try:
         cell = ws.find(username, in_column=1)
         row_data = ws.row_values(cell.row)
+        # Ajuste de índice: username(0), pass(1), role(2), app(3), email(4), id(5), code(6)
         if len(row_data) >= 5 and row_data[4] == email:
             codigo = str(random.randint(100000, 999999))
             ws.update_cell(cell.row, 7, codigo)
@@ -232,10 +240,13 @@ def finalizar_recuperacao_senha(username, codigo, nova_senha):
     ws = get_worksheet("usuarios")
     try:
         cell = ws.find(username, in_column=1)
-        row_data = ws.row_values(cell.row)
-        if len(row_data) >= 7 and str(row_data[6]) == str(codigo):
+        # Pega valor da célula de código (coluna 7) para conferir
+        code_on_db = ws.cell(cell.row, 7).value
+        
+        if str(code_on_db) == str(codigo):
             ws.update_cell(cell.row, 2, nova_senha)
-            ws.update_cell(cell.row, 7, "")
+            ws.update_cell(cell.row, 7, "") # Limpa o código
+            limpar_cache()
             return True
     except: pass
     return False
