@@ -6,6 +6,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import random
 
 # --- CONFIGURAÇÃO ---
+# ID extraído do link que você mandou
 SPREADSHEET_ID = "1BsHA6adHib36GWijD_rwTg5btj94KegFoKf-ztKqTik"
 
 COLUNAS_CLIENTES = [
@@ -19,36 +20,52 @@ COLUNAS_USUARIOS = [
     "username", "password", "role", "approved", "email", "user_id", "recovery_code"
 ]
 
-# --- CONEXÃO ---
+# --- CONEXÃO COM GOOGLE SHEETS ---
 def get_connection():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     try:
-        creds_dict = dict(st.secrets["gcp_service_account"])
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
-        return client
+        # Tenta pegar dos segredos do Streamlit Cloud
+        if "gcp_service_account" in st.secrets:
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            client = gspread.authorize(creds)
+            return client
+        else:
+            st.error("❌ ERRO: Chave do Google não encontrada nos Secrets.")
+            st.stop()
     except Exception as e:
-        st.error(f"Erro de autenticação: {e}")
+        st.error(f"Erro de autenticação nos segredos: {e}")
         st.stop()
 
 def get_worksheet(name):
     client = get_connection()
+    sh = None
+    
+    # Tenta abrir direto pelo ID (Mais seguro que pelo nome)
     try:
         sh = client.open_by_key(SPREADSHEET_ID)
-    except:
-        st.error("Erro ao abrir planilha pelo ID.")
+    except Exception as e:
+        st.error("❌ ERRO: O robô não conseguiu entrar na planilha.")
+        st.info("Verifique se você compartilhou a planilha com este e-mail exato:")
+        st.code("sistema@correspondente-gestao.iam.gserviceaccount.com")
+        st.write(f"Detalhe do erro: {e}")
         st.stop()
         
     try:
         ws = sh.worksheet(name)
         return ws
     except:
-        ws = sh.add_worksheet(title=name, rows=1000, cols=30)
-        if name == "clientes": ws.append_row(COLUNAS_CLIENTES)
-        elif name == "usuarios": 
-            ws.append_row(COLUNAS_USUARIOS)
-            ws.append_row(["admin", "1234", "admin", 1, "admin@sistema.com", 1000, ""])
-        return ws
+        # Se a aba não existir, cria ela
+        try:
+            ws = sh.add_worksheet(title=name, rows=1000, cols=30)
+            if name == "clientes": ws.append_row(COLUNAS_CLIENTES)
+            elif name == "usuarios": 
+                ws.append_row(COLUNAS_USUARIOS)
+                ws.append_row(["admin", "1234", "admin", 1, "admin@sistema.com", 1000, ""])
+            return ws
+        except Exception as e:
+            st.error(f"Erro ao criar aba '{name}': {e}")
+            st.stop()
 
 def init_db():
     get_worksheet("clientes")
@@ -57,16 +74,19 @@ def init_db():
 # --- CLIENTES ---
 def get_clientes(filtro_usuario=None):
     ws = get_worksheet("clientes")
-    data = ws.get_all_records()
-    df = pd.DataFrame(data)
-    if df.empty: return pd.DataFrame(columns=COLUNAS_CLIENTES)
-    
-    if 'id' in df.columns:
-        df['id'] = pd.to_numeric(df['id'], errors='coerce').fillna(0).astype(int)
+    try:
+        data = ws.get_all_records()
+        df = pd.DataFrame(data)
+        if df.empty: return pd.DataFrame(columns=COLUNAS_CLIENTES)
+        
+        if 'id' in df.columns:
+            df['id'] = pd.to_numeric(df['id'], errors='coerce').fillna(0).astype(int)
 
-    if filtro_usuario and filtro_usuario != "Todos":
-        df = df[df['usuario_responsavel'] == filtro_usuario]
-    return df
+        if filtro_usuario and filtro_usuario != "Todos":
+            df = df[df['usuario_responsavel'] == filtro_usuario]
+        return df
+    except Exception as e:
+        return pd.DataFrame(columns=COLUNAS_CLIENTES)
 
 def add_cliente(dados):
     ws = get_worksheet("clientes")
@@ -122,34 +142,63 @@ def delete_cliente(cliente_id):
         ws.delete_rows(cell.row)
     except: pass
 
-# --- USUÁRIOS (LÓGICA NOVA AQUI) ---
+# --- USUÁRIOS ---
 def verificar_login(username, password):
     ws = get_worksheet("usuarios")
-    data = ws.get_all_records()
-    for row in data:
-        if str(row['username']) == username:
-            if str(row['password']) == password:
-                return {"status": "success", "role": row['role'], "approved": str(row['approved']) == "1"}
-            return {"status": "fail", "msg": "Senha incorreta"}
-    return {"status": "fail", "msg": "Usuário não encontrado"}
+    try:
+        data = ws.get_all_records()
+        for row in data:
+            if str(row['username']) == username:
+                if str(row['password']) == password:
+                    return {"status": "success", "role": row['role'], "approved": str(row['approved']) == "1"}
+                return {"status": "fail", "msg": "Senha incorreta"}
+        return {"status": "fail", "msg": "Usuário não encontrado"}
+    except Exception as e:
+        return {"status": "fail", "msg": f"Erro ao acessar usuários: {str(e)}"}
 
 def registrar_usuario(username, password, email, role='user', approved=0):
     ws = get_worksheet("usuarios")
     data = ws.get_all_records()
-    
-    # 1. VERIFICA SE JÁ EXISTE (DUPLICADO)
     for row in data:
-        if str(row['username']).lower() == username.lower(): 
-            return {"status": False, "msg": "⚠️ Este nome de usuário já existe!"}
-        if str(row['email']).lower() == email.lower(): 
-            return {"status": False, "msg": "⚠️ Este e-mail já está registado no sistema!"}
+        if str(row['username']) == username: return {"status": False, "msg": "Usuário já existe"}
+        if str(row['email']) == email: return {"status": False, "msg": "E-mail já cadastrado"}
             
-    # 2. GERA ID ÚNICO
     new_id = random.randint(100000, 999999)
-    
-    # 3. SALVA
     ws.append_row([username, password, role, approved, email, new_id, ""])
     return {"status": True, "msg": "Sucesso", "id_gerado": new_id}
+
+def get_usuarios_pendentes():
+    ws = get_worksheet("usuarios")
+    data = ws.get_all_records()
+    df = pd.DataFrame(data)
+    if df.empty: return df
+    return df[df['approved'].astype(str) == "0"]
+
+def get_todos_usuarios():
+    ws = get_worksheet("usuarios")
+    return pd.DataFrame(ws.get_all_records())
+
+def get_lista_nomes_usuarios():
+    ws = get_worksheet("usuarios")
+    try:
+        vals = ws.col_values(1)
+        return vals[1:] if len(vals) > 1 else []
+    except:
+        return []
+
+def aprovar_usuario(username):
+    ws = get_worksheet("usuarios")
+    try:
+        cell = ws.find(username, in_column=1)
+        ws.update_cell(cell.row, 4, 1)
+    except: pass
+
+def deletar_usuario(username):
+    ws = get_worksheet("usuarios")
+    try:
+        cell = ws.find(username, in_column=1)
+        ws.delete_rows(cell.row)
+    except: pass
 
 def update_usuario(old_username, new_data):
     ws = get_worksheet("usuarios")
@@ -166,36 +215,6 @@ def update_usuario(old_username, new_data):
         return True
     except: return False
 
-def get_usuarios_pendentes():
-    ws = get_worksheet("usuarios")
-    data = ws.get_all_records()
-    df = pd.DataFrame(data)
-    if df.empty: return df
-    return df[df['approved'].astype(str) == "0"]
-
-def get_todos_usuarios():
-    ws = get_worksheet("usuarios")
-    return pd.DataFrame(ws.get_all_records())
-
-def get_lista_nomes_usuarios():
-    ws = get_worksheet("usuarios")
-    vals = ws.col_values(1)
-    return vals[1:] if len(vals) > 1 else []
-
-def aprovar_usuario(username):
-    ws = get_worksheet("usuarios")
-    try:
-        cell = ws.find(username, in_column=1)
-        ws.update_cell(cell.row, 4, 1)
-    except: pass
-
-def deletar_usuario(username):
-    ws = get_worksheet("usuarios")
-    try:
-        cell = ws.find(username, in_column=1)
-        ws.delete_rows(cell.row)
-    except: pass
-
 # --- RECUPERAÇÃO ---
 def iniciar_recuperacao_senha(username, email):
     ws = get_worksheet("usuarios")
@@ -207,7 +226,7 @@ def iniciar_recuperacao_senha(username, email):
             ws.update_cell(cell.row, 7, codigo)
             return {"status": True, "codigo": codigo}
     except: pass
-    return {"status": False, "msg": "Utilizador ou E-mail incorretos."}
+    return {"status": False, "msg": "Dados incorretos"}
 
 def finalizar_recuperacao_senha(username, codigo, nova_senha):
     ws = get_worksheet("usuarios")
