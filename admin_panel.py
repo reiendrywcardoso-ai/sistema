@@ -72,7 +72,6 @@ def render_admin():
             with st.container():
                 st.markdown('<div class="react-card">', unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
-                # Adicionei keys únicas aqui para evitar conflito
                 nu = c1.text_input("Login", value=row_u['username'], key="ed_login")
                 ne = c2.text_input("E-mail", value=row_u['email'], key="ed_email")
                 np = c1.text_input("Senha", value=row_u['password'], type="password", key="ed_pass")
@@ -84,9 +83,13 @@ def render_admin():
                 
                 st.markdown("---")
                 if st.button("🗑️ Remover Acesso", key="btn_del_user"):
-                    # Removi a trava de segurança do admin principal
+                    # 1. Envia o e-mail ANTES de deletar (enquanto ainda temos o e-mail)
+                    if row_u['email']:
+                        email_utils.email_acesso_removido(u_sel, row_u['email'])
+                    
+                    # 2. Deleta o usuário (sem trava de admin)
                     db.deletar_usuario(u_sel)
-                    st.success("Removido."); time.sleep(1); st.rerun()
+                    st.success("Removido e notificado por e-mail."); time.sleep(1); st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
     # --- ABA CRIAR ACESSO (MANUAL) ---
@@ -95,7 +98,6 @@ def render_admin():
         st.write("Criar um usuário manualmente (já aprovado).")
         
         c_new1, c_new2 = st.columns(2)
-        # Adicionei keys únicas aqui também
         new_u = c_new1.text_input("Novo Usuário", key="new_u_manual")
         new_e = c_new2.text_input("Novo E-mail", key="new_e_manual")
         new_p = c_new1.text_input("Nova Senha", type="password", key="new_p_manual")
