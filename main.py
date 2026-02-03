@@ -6,10 +6,11 @@ import email_utils
 import time
 
 # --- Configuração Global ---
-st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🟣")
+# initial_sidebar_state="expanded" garante que a lateral comece aberta
+st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🟣", initial_sidebar_state="expanded")
 db.init_db()
 
-# --- CSS GLOBAL (Visual React/Lovable + Sidebar Menu) ---
+# --- CSS GLOBAL (Visual React/Lovable) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -19,41 +20,45 @@ st.markdown("""
         color: #1e293b;
     }
 
+    /* Fundo da Aplicação */
     .stApp {
-        background-color: #f8fafc;
+        background-color: #f8fafc; /* Slate-50 */
     }
 
+    /* Esconder menus padrões do topo, mas manter funcionalidade */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* header {visibility: hidden;}  <-- Comentei para você ver o botão de fechar a lateral se quiser */
 
+    /* Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e2e8f0;
     }
 
-    /* ESTILO DO MENU LATERAL (Remover bolinhas do radio) */
+    /* Estilo do Radio Button na Sidebar para parecer Menu */
     section[data-testid="stSidebar"] .stRadio > div {
-        gap: 10px;
+        gap: 0px;
     }
     
     section[data-testid="stSidebar"] .stRadio label {
         background-color: transparent;
-        border: 1px solid transparent;
         border-radius: 0.5rem;
         padding: 10px 15px;
         color: #64748b;
         font-weight: 500;
+        margin-bottom: 4px;
         transition: all 0.2s;
+        border: 1px solid transparent;
         cursor: pointer;
     }
 
-    /* Item selecionado no menu */
+    /* Item selecionado no menu lateral */
     section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] > label[data-checked="true"] {
-        background-color: #f3e8ff; /* Fundo Roxo Claro */
+        background-color: #f3e8ff; /* Roxo Claro */
         color: #7c3aed; /* Texto Roxo */
-        border: 1px solid #d8b4fe;
         font-weight: 600;
+        border: 1px solid #e9d5ff;
     }
 
     /* Hover no menu */
@@ -67,15 +72,17 @@ st.markdown("""
         display: none;
     }
 
-    /* Cards e Botões */
-    .dashboard-card {
+    /* Cards Estilo Dashboard */
+    .react-card {
         background-color: white;
         border: 1px solid #e2e8f0;
         border-radius: 1rem;
         padding: 1.5rem;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
     }
 
+    /* Botões */
     .stButton>button {
         background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
         color: white;
@@ -84,6 +91,7 @@ st.markdown("""
         font-weight: 600;
     }
     
+    /* Login Glass */
     .login-glass {
         background: rgba(255, 255, 255, 0.9);
         backdrop-filter: blur(12px);
@@ -101,7 +109,7 @@ if 'role' not in st.session_state: st.session_state.role = ''
 if 'username' not in st.session_state: st.session_state.username = ''
 if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
 
-# --- LOGIN ---
+# --- TELA DE LOGIN ---
 if not st.session_state.logged_in:
     st.markdown("""<style>.stApp {background: radial-gradient(circle at top left, #a78bfa, #7c3aed, #4c1d95);}</style>""", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.2, 1])
