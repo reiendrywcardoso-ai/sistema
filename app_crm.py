@@ -60,17 +60,11 @@ def buscar_endereco_cep(cep):
     return None
 
 def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
-    bg_icon = "#f1f5f9"
-    text_icon = "#475569"
-    
-    if cor_tema == "violet":
-        bg_icon = "#f3e8ff"; text_icon = "#7c3aed"
-    elif cor_tema == "green":
-        bg_icon = "#dcfce7"; text_icon = "#16a34a"
-    elif cor_tema == "blue":
-        bg_icon = "#dbeafe"; text_icon = "#2563eb"
-    elif cor_tema == "amber":
-        bg_icon = "#ffedd5"; text_icon = "#ea580c"
+    bg_icon = "#f1f5f9"; text_icon = "#475569"
+    if cor_tema == "violet": bg_icon = "#f3e8ff"; text_icon = "#7c3aed"
+    elif cor_tema == "green": bg_icon = "#dcfce7"; text_icon = "#16a34a"
+    elif cor_tema == "blue": bg_icon = "#dbeafe"; text_icon = "#2563eb"
+    elif cor_tema == "amber": bg_icon = "#ffedd5"; text_icon = "#ea580c"
 
     st.markdown(f"""
     <div class="react-card" style="display: flex; justify-content: space-between; align-items: start;">
@@ -85,13 +79,13 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     </div>
     """, unsafe_allow_html=True)
 
-def render_crm():
-    # --- Inicialização de Variáveis de Sessão ---
-    # Garante que os campos de endereço existam na memória para serem preenchidos automaticamente
+# --- FUNÇÃO PRINCIPAL AGORA ACEITA ARGUMENTO ---
+def render_page(pagina_atual):
+    
+    # Inicializações obrigatórias
     campos_endereco = ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf']
     for campo in campos_endereco:
-        if campo not in st.session_state:
-            st.session_state[campo] = ""
+        if campo not in st.session_state: st.session_state[campo] = ""
 
     vars_ed = ['ed_nome', 'ed_cpf', 'ed_tel', 'ed_tipo', 'ed_sub', 'ed_stat', 'ed_cep', 'ed_end', 'ed_num', 'ed_bai', 'ed_cid', 'ed_uf', 'ed_mae', 'ed_pix_str', 'ed_bank_str', 'ed_nota']
     for v in vars_ed:
@@ -99,25 +93,32 @@ def render_crm():
     if 'ed_nasc' not in st.session_state: st.session_state.ed_nasc = None
     if 'temp_lists' not in st.session_state: st.session_state.temp_lists = {'cad_pix':[], 'cad_bank':[], 'ed_pix':[], 'ed_bank':[]}
 
+    # Carrega dados
     filtro_usuario = st.session_state.username 
     if st.session_state.role == 'admin':
-        st.sidebar.markdown("### 👁️ Filtro Admin")
+        # Se for admin, mostra o filtro na sidebar abaixo do menu
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**Filtro Admin**")
         lista_users = ["Todos"] + db.get_lista_nomes_usuarios()
-        filtro_usuario = st.sidebar.selectbox("Carteira:", lista_users)
+        filtro_usuario = st.sidebar.selectbox("Ver dados de:", lista_users)
     
     df = db.get_clientes(filtro_usuario)
     
-    menu = st.radio("", ["Dashboard", "Clientes", "Novo Cadastro"], horizontal=True, label_visibility="collapsed")
-    st.markdown("<div style='margin-bottom: 20px;'></div>", unsafe_allow_html=True)
+    # Título da Página (Diferente para cada uma)
+    if pagina_atual == "Dashboard":
+        st.markdown(f"## Olá, {st.session_state.username}")
+        st.markdown("<p style='color: #64748b;'>Visão geral da sua carteira hoje.</p>", unsafe_allow_html=True)
+    elif pagina_atual == "Clientes":
+        st.markdown("## Carteira de Clientes")
+    elif pagina_atual == "Novo Cadastro":
+        st.markdown("## Novo Cadastro")
+
+    st.write("") # Espaço
 
     # ==========================
     # DASHBOARD
     # ==========================
-    if menu == "Dashboard":
-        st.markdown(f"## Olá, {st.session_state.username}")
-        st.markdown("<p style='color: #64748b;'>Aqui está o resumo da sua operação hoje.</p>", unsafe_allow_html=True)
-        st.write("")
-
+    if pagina_atual == "Dashboard":
         total = len(df)
         pendentes = len(df[df['status_venda'] == 'Pendente'])
         fechados = len(df[df['status_venda'].str.contains('Fechado', na=False)])
@@ -144,8 +145,6 @@ def render_crm():
             card_stats_react("Tarefas Hoje", len(tarefas), msg, "violet", "📅")
 
         st.write("")
-        st.write("")
-
         col_left, col_right = st.columns([2, 1])
 
         with col_left:
@@ -202,8 +201,7 @@ def render_crm():
     # ==========================
     # NOVO CADASTRO
     # ==========================
-    elif menu == "Novo Cadastro":
-        st.markdown("### Novo Cliente")
+    elif pagina_atual == "Novo Cadastro":
         with st.container():
             st.markdown('<div class="react-card">', unsafe_allow_html=True)
             
@@ -217,22 +215,21 @@ def render_crm():
                 ntel = st.text_input("Telefone", key="cad_tel")
                 nsub = st.selectbox("Situação", ["Margem Livre", "Sem Margem", "Tem Saldo", "Sem Saldo", "Antecipação Feita"], key="cad_sub")
                 
-                # BUSCA CEP - Lógica Corrigida
+                # BUSCA CEP
                 col_cep, col_btn = st.columns([0.7, 0.3])
                 ncep = col_cep.text_input("CEP", key="cad_cep")
                 if col_btn.button("🔍"):
                     d = buscar_endereco_cep(ncep)
                     if d:
-                        # Atualiza as variáveis de sessão para preencher os inputs
                         st.session_state.cad_rua = d.get('logradouro', '')
                         st.session_state.cad_bairro = d.get('bairro', '')
                         st.session_state.cad_cid = d.get('localidade', '')
                         st.session_state.cad_uf = d.get('uf', '')
                         st.toast("Endereço encontrado!")
-                        st.rerun() # Recarrega a tela para mostrar os dados nos inputs
+                        st.rerun()
                     else: st.error("CEP inválido")
 
-            # CAMPOS DE ENDEREÇO (Conectados ao Session State)
+            # ENDEREÇO
             st.markdown("---")
             e1, e2 = st.columns([3, 1])
             nrua = e1.text_input("Endereço", value=st.session_state.cad_rua, key="in_rua")
@@ -242,12 +239,10 @@ def render_crm():
             nbai = e3.text_input("Bairro", value=st.session_state.cad_bairro, key="in_bairro")
             ncid = e4.text_input("Cidade", value=st.session_state.cad_cid, key="in_cid")
             nuf = e5.text_input("UF", value=st.session_state.cad_uf, key="in_uf")
-            
             nmae = st.text_input("Nome da Mãe", key="cad_mae")
 
             st.markdown("---")
             st.caption("Financeiro")
-            
             f1, f2 = st.columns(2)
             with f1:
                 tpix = st.selectbox("Tipo Pix", TIPOS_CHAVE_PIX)
@@ -281,7 +276,6 @@ def render_crm():
                 st.success("Salvo!")
                 st.session_state.temp_lists['cad_pix'] = []
                 st.session_state.temp_lists['cad_bank'] = []
-                # Limpa Sessão
                 for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf']: st.session_state[k] = ""
                 time.sleep(1); st.rerun()
             
@@ -290,9 +284,7 @@ def render_crm():
     # ==========================
     # CLIENTES / EDIÇÃO
     # ==========================
-    elif menu == "Clientes":
-        st.markdown(f"### Carteira de Clientes")
-        
+    elif pagina_atual == "Clientes":
         c_filtros = st.columns([2, 1, 1])
         filter_text = c_filtros[0].text_input("Buscar", placeholder="Nome ou CPF...")
         f_tipo = c_filtros[1].multiselect("Tipo", df['tipo'].unique() if not df.empty else [])
@@ -334,10 +326,9 @@ def render_crm():
                     st.session_state.ed_bai = d.get('bairro','')
                     st.session_state.ed_cid = d.get('localidade','')
                     st.session_state.ed_uf = d.get('uf','')
-                    st.toast("Endereço Atualizado. Clique em Atualizar Dados.")
+                    st.toast("Endereço Atualizado.")
                     st.rerun()
 
-            # Lógica para carregar do banco se a sessão estiver vazia (primeira carga)
             val_end = st.session_state.ed_end if st.session_state.ed_end else str(row['endereco'])
             val_bai = st.session_state.ed_bai if st.session_state.ed_bai else str(row['bairro'])
             val_cid = st.session_state.ed_cid if st.session_state.ed_cid else str(row['cidade'])
@@ -351,19 +342,16 @@ def render_crm():
             ebai = ee3.text_input("Bairro", value=val_bai)
             ecid = ee4.text_input("Cidade", value=val_cid)
             eest = ee5.text_input("UF", value=val_uf)
-            
             emae = st.text_input("Mãe", value=str(row['nome_mae']))
 
             st.markdown("#### Financeiro")
             ef1, ef2 = st.columns(2)
             with ef1:
-                # Pix
                 etpix = st.selectbox("Pix Tipo", TIPOS_CHAVE_PIX, key="ept")
                 ecpix = st.text_input("Chave", key="epc")
                 if st.button("Add Pix", key="bap"):
                     st.session_state.edit_pix_list.append(f"{etpix}: {ecpix}")
                 
-                # Mostra o que já tem + novos
                 pix_db = str(row['pix_chave']).split(" | ")
                 all_pix = pix_db + st.session_state.edit_pix_list
                 st.write("**Pix Salvos:**")
@@ -371,7 +359,6 @@ def render_crm():
                     if p: st.caption(p)
 
             with ef2:
-                # Banco
                 ebn = st.selectbox("Banco", LISTA_BANCOS, key="ebn")
                 ebag = st.text_input("Ag", key="eba")
                 ebcc = st.text_input("Cc", key="ebc")
@@ -388,7 +375,6 @@ def render_crm():
             
             c_up, c_del = st.columns([4, 1])
             if c_up.button("ATUALIZAR DADOS", type="primary"):
-                # Junta listas antigas e novas
                 final_pix = " | ".join([p for p in all_pix if p])
                 final_bank = " || ".join([b for b in all_bank if b])
                 
