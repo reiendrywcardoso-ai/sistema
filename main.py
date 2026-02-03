@@ -14,125 +14,113 @@ st.set_page_config(
 )
 db.init_db()
 
-# --- CSS SUPREMO (Correção Definitiva do Card) ---
-st.markdown("""
-    <style>
-    /* 1. Fonte Inter */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
-    * {
-        font-family: 'Inter', sans-serif;
-    }
-
-    /* 2. Fundo Geral (Gradiente Roxo) */
-    .stApp {
-        background: linear-gradient(135deg, #8A56E8 0%, #7A4FE3 100%);
-    }
-
-    /* 3. Esconder elementos nativos */
-    #MainMenu, footer, header {visibility: hidden;}
-
-    /* 4. O "QUADRADO" (Card de Login) 
-       Agora miramos no container com borda que criamos no Python.
-       Isso garante que o fundo pegue todo o formulário. */
-    
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: #F3EFFE; /* Lilás bem claro (Fundo do Card) */
-        border-radius: 24px;
-        padding: 2rem !important; /* Espaçamento interno */
-        box-shadow: 0 20px 50px rgba(0,0,0,0.15); /* Sombra suave */
-        border: 1px solid rgba(255,255,255,0.5) !important;
-        margin-top: 2rem;
-    }
-    
-    /* Remove o padding padrão extra do container interno para ficar alinhado */
-    div[data-testid="stVerticalBlockBorderWrapper"] > div {
-        padding: 0 !important;
-    }
-
-    /* 5. Inputs Estilizados */
-    div[data-baseweb="input"] {
-        background-color: #EBE5F5 !important; /* Fundo cinza/lilás do input */
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 8px;
-    }
-    div[data-baseweb="base-input"] {
-        background-color: transparent !important;
-    }
-    input.stTextInput {
-        background-color: transparent !important;
-        color: #1e293b !important;
-        font-weight: 500;
-    }
-    /* Esconde o label padrão */
-    .stTextInput label {
-        display: none;
-    }
-
-    /* 6. Botão Primário (Entrar) */
-    div.stButton > button[kind="primary"] {
-        background: linear-gradient(90deg, #7A4FE3 0%, #6d28d9 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 12px !important;
-        height: 55px !important;
-        font-weight: 700 !important;
-        font-size: 16px !important;
-        width: 100% !important;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 15px rgba(122, 79, 227, 0.4);
-        margin-top: 10px;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(122, 79, 227, 0.6);
-    }
-
-    /* 7. Botão Secundário (Abas/Links) */
-    div.stButton > button[kind="secondary"] {
-        background-color: transparent !important;
-        border: none !important;
-        color: #64748b !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        height: 40px !important;
-    }
-    div.stButton > button[kind="secondary"]:hover {
-        color: #7A4FE3 !important;
-        background-color: rgba(122, 79, 227, 0.1) !important;
-    }
-
-    /* 8. Labels Customizados */
-    .custom-label {
-        color: #475569;
-        font-weight: 600;
-        font-size: 13px;
-        margin-bottom: 8px;
-        display: block;
-        margin-top: 8px;
-    }
-
-    /* 9. Sidebar Customizada */
-    section[data-testid="stSidebar"] {
-        background-color: white;
-        border-right: 1px solid #e2e8f0;
-    }
-    
-    /* Centralização na tela */
-    div[data-testid="column"] {
-        align-self: center;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# --- Sessão ---
+# --- Inicialização de Estado ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'role' not in st.session_state: st.session_state.role = ''
 if 'username' not in st.session_state: st.session_state.username = ''
 if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
 if 'login_tab' not in st.session_state: st.session_state.login_tab = 'login'
 if 'register_subtab' not in st.session_state: st.session_state.register_subtab = 'criar'
+
+# ==========================================
+# CSS DINÂMICO (Muda dependendo se está logado ou não)
+# ==========================================
+
+# 1. CSS COMUM (Fontes e resets)
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    #MainMenu, footer, header {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
+if not st.session_state.logged_in:
+    # --- CSS APENAS PARA TELA DE LOGIN (ROXO) ---
+    st.markdown("""
+        <style>
+        /* Fundo Roxo Gradiente APENAS no Login */
+        .stApp {
+            background: linear-gradient(135deg, #8A56E8 0%, #7A4FE3 100%);
+        }
+
+        /* Estilo do Card (Quadrado de Login) */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #F3EFFE;
+            border-radius: 24px;
+            padding: 2rem !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.5) !important;
+        }
+        
+        /* Remove padding interno extra */
+        div[data-testid="stVerticalBlockBorderWrapper"] > div { padding: 0 !important; }
+
+        /* Inputs Estilizados */
+        div[data-baseweb="input"] {
+            background-color: #EBE5F5 !important;
+            border: none !important;
+            border-radius: 12px !important;
+            padding: 8px;
+        }
+        input.stTextInput {
+            background-color: transparent !important;
+            color: #1e293b !important;
+        }
+        .stTextInput label { display: none; }
+
+        /* Botões */
+        div.stButton > button[kind="primary"] {
+            background: linear-gradient(90deg, #7A4FE3 0%, #6d28d9 100%) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 12px !important;
+            height: 55px !important;
+            width: 100% !important;
+            margin-top: 10px;
+        }
+        div.stButton > button[kind="secondary"] {
+            background-color: transparent !important;
+            border: none !important;
+            color: #64748b !important;
+        }
+        
+        /* Labels */
+        .custom-label {
+            color: #475569;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+            display: block;
+            margin-top: 8px;
+        }
+        
+        /* Centralizar */
+        div[data-testid="column"] { align-self: center; }
+        </style>
+    """, unsafe_allow_html=True)
+
+else:
+    # --- CSS APENAS PARA O SISTEMA (CLEAN/BRANCO) ---
+    st.markdown("""
+        <style>
+        /* Fundo Clean para o Dashboard */
+        .stApp {
+            background: #f8fafc !important; /* Cinza bem clarinho quase branco */
+        }
+        
+        /* Sidebar Branca */
+        section[data-testid="stSidebar"] {
+            background-color: white;
+            border-right: 1px solid #e2e8f0;
+        }
+        
+        /* Ajustes gerais de texto no app */
+        h1, h2, h3 { color: #1e293b; }
+        p, div { color: #475569; }
+        </style>
+    """, unsafe_allow_html=True)
+
 
 # ==========================================
 # TELA DE LOGIN
@@ -146,8 +134,6 @@ if not st.session_state.logged_in:
     col_vazia_esq, col_login, col_vazia_dir = st.columns([1, 1.2, 1])
     
     with col_login:
-        # AQUI ESTÁ A MÁGICA: st.container(border=True)
-        # O CSS "stVerticalBlockBorderWrapper" vai estilizar exatamente este bloco
         with st.container(border=True):
             
             # 1. Ícone do Topo
@@ -163,7 +149,7 @@ if not st.session_state.logged_in:
                 </div>
             """, unsafe_allow_html=True)
 
-            # 2. Abas (Simulando Segmented Button)
+            # 2. Abas
             st.markdown('<div style="background-color: #E6E0F5; padding: 4px; border-radius: 12px; margin-bottom: 25px;">', unsafe_allow_html=True)
             c_tab1, c_tab2 = st.columns(2)
             with c_tab1:
