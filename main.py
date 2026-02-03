@@ -9,18 +9,17 @@ import time
 st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🟣")
 db.init_db()
 
-# --- CSS GLOBAL (TRADUÇÃO DO DESIGN REACT/TAILWIND) ---
+# --- CSS GLOBAL (Visual React/Lovable) ---
 st.markdown("""
     <style>
-    /* Importando a fonte Inter (usada no design original) */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
-        color: #1e293b; /* Slate-800 */
+        color: #1e293b;
     }
 
-    /* Fundo da Aplicação (Cinza/Branco suave) */
+    /* Fundo da Aplicação */
     .stApp {
         background-color: #f8fafc; /* Slate-50 */
     }
@@ -30,71 +29,79 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
-    /* Sidebar Estilo Dashboard */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
-        border-right: 1px solid #e2e8f0; /* Slate-200 */
+        border-right: 1px solid #e2e8f0;
     }
 
-    /* ESTILO DOS CARDS (Igual ao Shadcn UI) */
+    /* Cards Estilo Dashboard */
     .dashboard-card {
         background-color: white;
         border: 1px solid #e2e8f0;
-        border-radius: 0.75rem; /* rounded-xl */
+        border-radius: 1rem;
         padding: 1.5rem;
-        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1); /* shadow-sm */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
 
-    /* Botões Principais (Gradiente Violeta) */
+    /* Botões Principais (Violeta) */
     .stButton>button {
-        background: linear-gradient(to right, #8b5cf6, #7c3aed); /* violet-500 to violet-600 */
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
         color: white;
         border: none;
-        border-radius: 0.5rem; /* rounded-lg */
+        border-radius: 0.5rem;
         padding: 0.5rem 1rem;
-        font-weight: 500;
-        letter-spacing: 0.025em;
+        font-weight: 600;
         transition: all 0.2s;
-        box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.3);
+        box-shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.2);
     }
-    
     .stButton>button:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 8px -1px rgba(124, 58, 237, 0.4);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.3);
         color: white;
     }
 
-    /* Inputs (Campos de Texto) Estilo Shadcn */
+    /* Inputs */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stDateInput input, .stTextArea textarea {
-        border-radius: 0.5rem; /* rounded-lg */
-        border: 1px solid #e2e8f0; /* slate-200 */
+        border-radius: 0.5rem;
+        border: 1px solid #e2e8f0;
         background-color: #ffffff;
-        color: #0f172a; /* slate-900 */
-        padding: 0.5rem 0.75rem;
-        height: auto;
+        color: #0f172a;
     }
-    
     .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: #8b5cf6; /* violet-500 */
-        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); /* ring-violet */
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
     }
 
-    /* Títulos */
-    h1, h2, h3 {
-        color: #0f172a; /* slate-900 */
-        font-weight: 700;
-        letter-spacing: -0.025em;
+    /* Login Glass */
+    .login-glass {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 1.5rem;
+        padding: 3rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     }
     
-    /* Login Container Específico */
-    .login-glass {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        border-radius: 1.5rem; /* rounded-3xl */
-        padding: 3rem;
-        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    /* Abas */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: #f1f5f9;
+        padding: 4px;
+        border-radius: 0.5rem;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 32px;
+        border-radius: 0.3rem;
+        background-color: transparent;
+        border: none;
+        color: #64748b;
+        font-weight: 500;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: white !important;
+        color: #7c3aed !important;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -105,16 +112,13 @@ if 'role' not in st.session_state: st.session_state.role = ''
 if 'username' not in st.session_state: st.session_state.username = ''
 if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
 
-# ==========================================
-# TELA DE LOGIN (ESTILO GLASS/VIOLETA)
-# ==========================================
+# --- TELA DE LOGIN ---
 if not st.session_state.logged_in:
-    # CSS Específico só para o fundo do login
+    # Fundo Roxo Degradê apenas no Login
     st.markdown("""
     <style>
     .stApp {
-        background: radial-gradient(circle at top left, #e9d5ff, #f3e8ff, #ffffff);
-        /* Um fundo suave roxo/branco como no design moderno */
+        background: radial-gradient(circle at top left, #a78bfa, #7c3aed, #4c1d95);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -123,30 +127,28 @@ if not st.session_state.logged_in:
     with c2:
         st.write("")
         st.write("")
-        
-        # Container Glassmorphism
         st.markdown('<div class="login-glass">', unsafe_allow_html=True)
         
-        # Logo/Ícone
+        # Logo
         st.markdown("""
-        <div style="display: flex; justify-content: center; margin-bottom: 24px;">
-            <div style="background: linear-gradient(135deg, #7c3aed, #6d28d9); width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.3);">
+        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+            <div style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); width: 64px; height: 64px; border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white; font-size: 32px; box-shadow: 0 10px 15px -3px rgba(124, 58, 237, 0.3);">
                 🏦
             </div>
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown("<h2 style='text-align: center; margin-bottom: 8px;'>Bem-vindo</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #64748b; font-size: 14px; margin-bottom: 32px;'>Gestão de Correspondente Bancário</p>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; margin-bottom: 5px;'>Gestão Correspondente</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 14px; margin-bottom: 30px;'>Faça login para continuar</p>", unsafe_allow_html=True)
         
-        tab_login, tab_register = st.tabs(["Acessar", "Criar Conta"])
+        tab_login, tab_register = st.tabs(["Entrar", "Criar Conta"])
         
         with tab_login:
             u = st.text_input("Usuário", placeholder="Seu login", key="log_u")
             p = st.text_input("Senha", type="password", placeholder="••••••••", key="log_p")
             
             st.write("")
-            if st.button("ENTRAR", use_container_width=True):
+            if st.button("ACESSAR SISTEMA", use_container_width=True):
                 r = db.verificar_login(u, p)
                 if r['status'] == 'success':
                     if r['approved']:
@@ -154,7 +156,7 @@ if not st.session_state.logged_in:
                         st.session_state.role = r['role']
                         st.session_state.username = u
                         st.rerun()
-                    else: st.warning("Aguardando aprovação.")
+                    else: st.warning("🔒 Aguardando aprovação.")
                 else: st.error(r['msg'])
             
             with st.expander("Esqueceu a senha?"):
@@ -184,7 +186,7 @@ if not st.session_state.logged_in:
             npc = st.text_input("Confirmar", type="password", key="reg_pc")
             
             if st.button("SOLICITAR ACESSO", use_container_width=True):
-                if np != npc: st.error("Senhas não batem.")
+                if np != npc: st.error("Senhas não conferem.")
                 else:
                     res = db.registrar_usuario(nu, np, ne)
                     if res['status']:
@@ -193,12 +195,11 @@ if not st.session_state.logged_in:
                     else: st.error(res['msg'])
 
         st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 12px; margin-top: 24px;'>EDWCRED © 2026</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.6); margin-top: 20px; font-size: 12px;'>EDWCRED © 2026</p>", unsafe_allow_html=True)
 
 # --- ÁREA INTERNA ---
 else:
     with st.sidebar:
-        # Perfil com Design Moderno
         st.markdown(f"""
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
             <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
