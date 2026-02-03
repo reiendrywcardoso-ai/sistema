@@ -18,10 +18,30 @@ LISTA_BANCOS = [
 TIPOS_CHAVE_PIX = ["CPF", "Celular", "E-mail", "CNPJ", "Chave Aleatória"]
 TIPOS_CONTA = ["Corrente", "Poupança", "Pagamento", "Salário"]
 
-# Opções de Situação por Tipo
-SUBS_CLT = ["Margem Livre", "Sem Margem"]
-SUBS_INSS = ["Margem Livre", "Sem Margem", "Tem Port", "Sem Port", "Tem Refin", "Sem Refin"]
-SUBS_FGTS = ["Tem Saldo", "Sem Saldo", "Aniversário", "Antecipação Feita"]
+# --- DEFINIÇÃO CORRETA DAS LISTAS (Conforme seu pedido) ---
+SUBS_CLT = [
+    "Margem Livre", 
+    "Sem Margem", 
+    "Não Elegível", 
+    "Data Termino"
+]
+
+SUBS_INSS = [
+    "Margem Livre", 
+    "Sem Margem", 
+    "Bloqueado", 
+    "Tem Port", 
+    "Sem Port", 
+    "Tem Refin", 
+    "Sem Refin"
+]
+
+SUBS_FGTS = [
+    "Tem Saldo", 
+    "Sem Saldo", 
+    "Aniversário", 
+    "Antecipação Feita"
+]
 
 def buscar_endereco_cep(cep):
     cep = str(cep).replace("-", "").replace(".", "").strip()
@@ -104,8 +124,8 @@ def render_page(pagina_atual):
         total = len(df)
         pendentes = len(df[df['status_venda'] == 'Pendente'])
         
-        # Conta Não Elegíveis
-        nao_elegiveis = len(df[df['status_venda'] == 'Não Elegível'])
+        # Conta Bloqueados ou Não Elegíveis
+        nao_elegiveis = len(df[df['status_venda'].isin(['Não Elegível', 'Bloqueado'])])
         
         hoje = datetime.now().date()
         dia_semana = hoje.weekday() # 0=Seg, 1=Ter, ..., 6=Dom
@@ -117,8 +137,7 @@ def render_page(pagina_atual):
         for idx, row in df.iterrows():
             nome = row['nome']
             tipo = row['tipo']
-            sub = row['sub_categoria']
-            status = row['status_venda']
+            sub = row['sub_categoria'] # Situação
             
             # Converter datas
             data_term = None
@@ -131,41 +150,54 @@ def render_page(pagina_atual):
                 try: data_cons = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
                 except: pass
 
-            # --- REGRA 1: CLT / INSS - Sem Margem (Não Elegível) ---
-            # Avisar toda Terça-feira (weekday == 1) SE não tiver data de término vigente
-            if tipo in ['CLT', 'INSS'] and sub == "Sem Margem":
-                if data_term and data_term > hoje:
-                    pass # Tem contrato ativo, não avisar
-                else:
-                    if dia_semana == 1: # Terça-feira
-                        tarefas.append(f"🔎 Consultar Margem: {nome} ({tipo})")
+            # --- REGRA GERAL: Se tiver "Data Termino" e for futura, não avisa NADA ---
+            if tipo == "CLT" and sub == "Data Termino":
+                continue # Pula, não faz nada (não avisa)
 
-            # --- REGRA 2: INSS - Portabilidade e Refin ---
-            if tipo == 'INSS':
-                if sub == "Tem Port":
+            # --- REGRA 1: CLT ---
+            if tipo == "CLT":
+                if sub == "Não Elegível":
+                    # Avisar toda Terça-feira (1)
+                    if dia_semana == 1:
+                        tarefas.append(f"🔎 Consultar CLT (Elegibilidade): {nome}")
+                elif sub == "Margem Livre" and row['status_venda'] == "Pendente":
+                    # Avisa todo dia se tem margem
+                    tarefas.append(f"✅ Margem Livre CLT: {nome}")
+                # "Sem Margem" -> Não faz nada
+
+            # --- REGRA 2: INSS ---
+            if tipo == "INSS":
+                if sub == "Bloqueado":
+                    # Avisar toda Terça-feira (1) para tentar desbloquear
+                    if dia_semana == 1:
+                        tarefas.append(f"🔓 Tentar Desbloqueio INSS: {nome}")
+                elif sub == "Tem Port":
                     tarefas.append(f"🔄 Fazer Portabilidade: {nome}")
-                if sub == "Tem Refin":
-                    tarefas.append(f"💲 Fazer Refin: {nome}")
-            
+                elif sub == "Tem Refin":
+                    tarefas.append(f"💲 Fazer Refinanciamento: {nome}")
+                elif sub == "Margem Livre" and row['status_venda'] == "Pendente":
+                    tarefas.append(f"✅ Margem Livre INSS: {nome}")
+                # "Sem Margem", "Sem Port", "Sem Refin" -> Não faz nada
+
             # --- REGRA 3: FGTS ---
-            if tipo == 'FGTS':
+            if tipo == "FGTS":
                 if sub == "Tem Saldo":
                     tarefas.append(f"💰 FGTS com Saldo: {nome}")
                 elif sub == "Sem Saldo":
-                    # Avisar dia 10 E dias 20 até 28
+                    # Avisar dia 10 e dias 20 a 28
                     dias_aviso = [10, 20, 21, 22, 23, 24, 25, 26, 27, 28]
                     if dia_mes in dias_aviso:
                         tarefas.append(f"📅 Consultar Saldo FGTS: {nome}")
                 elif sub == "Aniversário":
-                    # Avisar na data específica configurada
-                    if data_cons and data_cons == hoje:
-                        tarefas.append(f"🎂 Aniversário FGTS Hoje: {nome}")
+                    # Avisar na data específica
+                    if data_cons and data_cons <= hoje and row['status_venda'] != "Fechado Comigo":
+                        tarefas.append(f"🎂 Aniversário FGTS (Consultar): {nome}")
 
         # Renderizar Cards
         c1, c2, c3, c4 = st.columns(4)
         with c1: card_stats_react("Total Clientes", total, "Carteira ativa", "blue", "👥")
         with c2: card_stats_react("Pendentes", pendentes, "Em andamento", "amber", "⏳")
-        with c3: card_stats_react("Não Elegíveis", nao_elegiveis, "Monitorando", "red", "🚫")
+        with c3: card_stats_react("Bloqueados", nao_elegiveis, "Monitorando", "red", "🚫")
         
         with c4: 
             msg = f"{len(tarefas)} Alertas" if tarefas else "Tudo limpo"
@@ -178,7 +210,6 @@ def render_page(pagina_atual):
         with col_left:
             st.markdown("### Clientes Recentes")
             st.markdown('<div class="react-card" style="padding: 0; overflow: hidden;">', unsafe_allow_html=True)
-            # Cabeçalho da tabela
             st.markdown("""
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; padding: 12px 24px; background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase;">
                 <div>Cliente</div>
@@ -193,7 +224,7 @@ def render_page(pagina_atual):
                 for i, r in recentes.iterrows():
                     bg_st = "#f1f5f9"; cl_st = "#475569"
                     if "Pendente" in r['status_venda']: bg_st = "#fff7ed"; cl_st = "#c2410c"
-                    if "Não Elegível" in r['status_venda']: bg_st = "#fef2f2"; cl_st = "#991b1b"
+                    if r['status_venda'] in ["Não Elegível", "Bloqueado"]: bg_st = "#fef2f2"; cl_st = "#991b1b"
                     if "Fechado" in r['status_venda']: bg_st = "#f0fdf4"; cl_st = "#15803d"
 
                     st.markdown(f"""
@@ -233,7 +264,7 @@ def render_page(pagina_atual):
             st.markdown('</div>', unsafe_allow_html=True)
 
     # ==========================
-    # NOVO CADASTRO (LÓGICA DO FORMULÁRIO INTELIGENTE)
+    # NOVO CADASTRO
     # ==========================
     elif pagina_atual == "Novo Cadastro":
         with st.container():
@@ -244,35 +275,33 @@ def render_page(pagina_atual):
                 nn = st.text_input("Nome Completo", key="cad_nome")
                 nc = st.text_input("CPF", key="cad_cpf")
                 
-                # Tipo com auto-refresh para mudar as opções de Situação
+                # Tipo: Atualiza a interface quando muda
                 nt = st.selectbox("Tipo", ["CLT", "INSS", "FGTS"], key="cad_tipo")
                 
-                # DATA DE NASCIMENTO: Formato Dia/Mês/Ano
+                # Formato DD/MM/YYYY
                 nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc", format="DD/MM/YYYY")
             
             with c2:
                 ntel = st.text_input("Telefone", key="cad_tel")
                 
-                # Lógica Dinâmica de Situação
-                opcoes_sub = SUBS_CLT
+                # --- LISTAS DINÂMICAS CORRETAS ---
+                opcoes_sub = SUBS_CLT # Default
                 if nt == "INSS": opcoes_sub = SUBS_INSS
                 elif nt == "FGTS": opcoes_sub = SUBS_FGTS
                 
                 nsub = st.selectbox("Situação", opcoes_sub, key="cad_sub")
 
-                # Campos Condicionais de Data
+                # Campos Condicionais
                 data_termino = None
                 data_consulta = None
 
                 if nt == "CLT":
-                    st.caption("Contrato de Trabalho")
-                    # DATA DE TÉRMINO: Formato Dia/Mês/Ano
-                    data_termino = st.date_input("Data de Término (Opcional)", value=None, key="cad_termino", help="Se preenchido, não alertará sobre margem.", format="DD/MM/YYYY")
+                    st.caption("Dados Contratuais")
+                    data_termino = st.date_input("Data de Término (Opcional)", value=None, key="cad_termino", help="Preencha se o contrato tiver fim determinado.", format="DD/MM/YYYY")
                 
                 if nt == "FGTS" and nsub == "Aniversário":
-                    st.caption("Consulta Futura")
-                    # DATA DE CONSULTA: Formato Dia/Mês/Ano
-                    data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data exata que o sistema avisará.", format="DD/MM/YYYY")
+                    st.caption("Programar Consulta")
+                    data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data que o sistema emitirá o alerta.", format="DD/MM/YYYY")
 
             # Busca CEP
             st.markdown("---")
@@ -292,7 +321,6 @@ def render_page(pagina_atual):
             e1, e2 = st.columns([3, 1])
             nrua = e1.text_input("Endereço", key="cad_rua")
             nnum = e2.text_input("Número", key="cad_num")
-            
             e3, e4, e5 = st.columns(3)
             nbai = e3.text_input("Bairro", key="cad_bairro")
             ncid = e4.text_input("Cidade", key="cad_cid")
@@ -323,9 +351,11 @@ def render_page(pagina_atual):
             
             st.write("")
             if st.button("SALVAR CADASTRO", use_container_width=True, type="primary"):
-                # Define Status Automático
+                # Status Automático
                 status_inicial = "Pendente"
-                if nsub == "Sem Margem": status_inicial = "Não Elegível"
+                if nsub == "Não Elegível": status_inicial = "Não Elegível"
+                if nsub == "Bloqueado": status_inicial = "Bloqueado"
+                if nsub == "Sem Margem": status_inicial = "Pendente" # Ou outra lógica se preferir
                 
                 dados = {
                     "nome": nn, "telefone": ntel, "cpf": nc, "tipo": nt, "sub_categoria": nsub,
@@ -339,10 +369,7 @@ def render_page(pagina_atual):
                 }
                 db.add_cliente(dados)
                 st.success("Salvo com sucesso!")
-                
-                # Ativa a flag de limpeza para a próxima renderização
                 st.session_state['limpar_formulario_cadastro'] = True
-                
                 time.sleep(1); st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -381,7 +408,7 @@ def render_page(pagina_atual):
             ec3, ec4 = st.columns(2)
             etipo = ec3.selectbox("Tipo", ["CLT", "INSS", "FGTS"], index=["CLT", "INSS", "FGTS"].index(row['tipo']) if row['tipo'] in ["CLT", "INSS", "FGTS"] else 0)
             
-            # Sub-categoria dinâmica na edição também
+            # LISTAS DINÂMICAS NA EDIÇÃO
             opcoes_sub_ed = SUBS_CLT
             if etipo == "INSS": opcoes_sub_ed = SUBS_INSS
             elif etipo == "FGTS": opcoes_sub_ed = SUBS_FGTS
@@ -390,17 +417,19 @@ def render_page(pagina_atual):
             if row['sub_categoria'] in opcoes_sub_ed: idx_sub = opcoes_sub_ed.index(row['sub_categoria'])
             esub = ec3.selectbox("Situação", opcoes_sub_ed, index=idx_sub)
             
-            estat = ec4.selectbox("Status", ["Pendente", "Não Elegível", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"], 
-                                  index=["Pendente", "Não Elegível", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"].index(row['status_venda']) if row['status_venda'] in ["Pendente", "Não Elegível", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"] else 0)
+            # Status
+            lista_status = ["Pendente", "Não Elegível", "Bloqueado", "Fechado Comigo", "Fechado com Outro", "Sem Interesse"]
+            idx_st = 0
+            if row['status_venda'] in lista_status: idx_st = lista_status.index(row['status_venda'])
+            estat = ec4.selectbox("Status", lista_status, index=idx_st)
 
-            # Datas Extras na Edição
+            # Datas Extras
             edata_term = None
             if etipo == "CLT":
                 val_dt = None
                 if row.get('data_termino'):
                     try: val_dt = datetime.strptime(str(row['data_termino']), '%Y-%m-%d').date()
                     except: pass
-                # DATA DE TÉRMINO: Formato Dia/Mês/Ano
                 edata_term = ec4.date_input("Data Término", value=val_dt, format="DD/MM/YYYY")
 
             edata_cons = None
@@ -409,7 +438,6 @@ def render_page(pagina_atual):
                 if row.get('data_consulta'):
                     try: val_dc = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
                     except: pass
-                # DATA DE CONSULTA: Formato Dia/Mês/Ano
                 edata_cons = ec4.date_input("Data Consulta", value=val_dc, format="DD/MM/YYYY")
 
             st.markdown("#### Endereço & Contato")
