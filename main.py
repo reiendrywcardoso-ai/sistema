@@ -278,7 +278,9 @@ else:
         
         st.markdown("<p style='color: #94a3b8; font-size: 11px; font-weight: 600; padding-left: 8px; margin-bottom: 8px; letter-spacing: 0.05em;'>MENU PRINCIPAL</p>", unsafe_allow_html=True)
         
+        # --- DEFINIÇÃO DO MENU ---
         opcoes_menu = ["📊 Dashboard", "👥 Clientes", "➕ Novo Cadastro"]
+        
         if st.session_state.role == 'admin':
             opcoes_menu.append("🔒 Painel Admin")
             
@@ -289,14 +291,16 @@ else:
             st.session_state.logged_in = False
             st.rerun()
 
-    # Roteamento
+    # --- ROTEAMENTO DE PÁGINAS ---
+    # Aqui está a correção: mapeamos os nomes do menu para os argumentos esperados pela função
     if escolha == "🔒 Painel Admin":
         admin_panel.render_admin()
     else:
-        # Mapeamento
+        # Mapeamento para o app_crm
         mapa = {
             "📊 Dashboard": "Dashboard",
             "👥 Clientes": "Clientes",
             "➕ Novo Cadastro": "Novo Cadastro"
         }
+        # Chama a função principal do CRM passando a página correta
         app_crm.render_page(mapa[escolha])

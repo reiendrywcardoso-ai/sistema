@@ -81,6 +81,7 @@ def card_stats_react(titulo, valor, subtitulo, cor_tema, icone):
     </div>
     """, unsafe_allow_html=True)
 
+# --- FUNÇÃO PRINCIPAL AGORA ACEITA ARGUMENTO ---
 def render_page(pagina_atual):
     # Inicializa variáveis de endereço
     for k in ['cad_rua', 'cad_bairro', 'cad_cid', 'cad_uf', 'cad_num']:
@@ -248,6 +249,7 @@ def render_page(pagina_atual):
                 for p in st.session_state.temp_lists['cad_pix']: st.markdown(f"🔹 {p}")
             
             with f2:
+                # BANCOS COMPLETOS RESTAURADOS
                 bn = st.selectbox("Banco", LISTA_BANCOS)
                 b_ag = st.text_input("Agência")
                 b_cc = st.text_input("Conta")
@@ -356,7 +358,7 @@ def render_page(pagina_atual):
                     if p: st.caption(p)
 
             with ef2:
-                # Banco (Completo na Edição também)
+                # Banco
                 ebn = st.selectbox("Banco", LISTA_BANCOS, key="ebn")
                 ebag = st.text_input("Ag", key="eba")
                 ebcc = st.text_input("Cc", key="ebc")
