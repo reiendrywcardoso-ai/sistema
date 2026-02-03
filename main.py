@@ -6,168 +6,154 @@ import email_utils
 import time
 
 # --- Configuração Global ---
-st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🏦")
+st.set_page_config(page_title="Gestão Correspondente", layout="wide", page_icon="🟣")
 db.init_db()
 
-# --- CSS PERSONALIZADO (ESTILO DA IMAGEM ROXA) ---
+# --- CSS GLOBAL PREMIUM (ROXO/VIOLETA) ---
 st.markdown("""
     <style>
-    /* 1. Fundo Gradiente Roxo (Igual à imagem) */
-    .stApp {
-        background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
-        background-attachment: fixed;
+    /* Fonte Moderna */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
     }
 
-    /* 2. Esconder menus padrões do Streamlit */
+    /* Fundo Geral da Aplicação */
+    .stApp {
+        background-color: #f8f9fe; /* Fundo cinza/azulado bem claro */
+    }
+
+    /* Esconder menus padrões */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
-    /* 3. Estilo do Cartão Branco (Centralizado) */
-    /* Isso afeta a coluna do meio quando estamos na tela de login */
-    div[data-testid="column"]:nth-of-type(2) {
-        background-color: white;
-        border-radius: 20px;
-        padding: 40px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    /* Sidebar (Menu Lateral) */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #f1f3f9;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.02);
     }
 
-    /* 4. Títulos e Textos dentro do cartão */
-    h1 {
-        color: #333 !important;
-        font-family: sans-serif;
-        font-weight: 800;
-        font-size: 26px !important;
-        text-align: center;
-        padding-bottom: 0px;
-    }
-    
-    p {
-        color: #666;
-        text-align: center;
-        font-size: 14px;
-    }
-
-    /* 5. Inputs (Caixas de Texto) */
-    .stTextInput>div>div>input {
-        background-color: #f0f2f5;
-        border: none;
-        border-radius: 10px;
-        color: #333;
-        padding: 12px;
-    }
-    
-    /* Remover borda de foco azul padrão e por uma roxa suave */
-    .stTextInput>div>div>input:focus {
-        box-shadow: 0 0 0 2px #8E2DE2;
-    }
-
-    /* 6. Botões (Degradê Roxo) */
+    /* Botões Principais (Gradiente Roxo) */
     .stButton>button {
-        width: 100%;
-        background: linear-gradient(90deg, #8E2DE2 0%, #4A00E0 100%);
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); /* Roxo Degradê */
         color: white;
         border: none;
-        border-radius: 25px; /* Bem arredondado igual a imagem */
-        padding: 12px;
-        font-weight: bold;
-        font-size: 16px;
-        margin-top: 10px;
-        transition: 0.3s;
+        border-radius: 12px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px -1px rgba(109, 40, 217, 0.3);
     }
     
     .stButton>button:hover {
-        transform: scale(1.02);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(109, 40, 217, 0.4);
         color: white;
-        box-shadow: 0 5px 15px rgba(74, 0, 224, 0.4);
     }
 
-    /* 7. Abas (Tabs) Limpas */
-    .stTabs [data-baseweb="tab-list"] {
-        justify-content: center;
-        gap: 20px;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
+    /* Botões Secundários (Brancos/Outline) */
+    button[kind="secondary"] {
+        background: white;
+        border: 1px solid #e5e7eb;
+        color: #374151;
     }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
-        border: none;
-        color: #999;
-        font-weight: 600;
+
+    /* Inputs (Campos de Texto) */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] > div, .stDateInput input, .stTextArea textarea {
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        background-color: #ffffff;
+        color: #1e293b;
+        padding: 10px;
+        transition: border 0.2s;
     }
-    
-    .stTabs [aria-selected="true"] {
-        color: #4A00E0 !important;
-        border-bottom: 2px solid #4A00E0;
+    .stTextInput input:focus, .stTextArea textarea:focus {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
     }
-    
-    /* Ajuste para mensagens de erro/sucesso ficarem legíveis no fundo branco */
-    .stAlert {
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
+
+    /* Cards Personalizados (HTML) */
+    .custom-card {
+        background: white;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
+        margin-bottom: 20px;
+    }
+
+    /* Métricas no Dashboard */
+    .metric-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .metric-label {
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    /* Estilo do Login */
+    .login-container {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 40px;
+        border-radius: 24px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- Controle de Sessão ---
+# --- Sessão ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'role' not in st.session_state: st.session_state.role = ''
 if 'username' not in st.session_state: st.session_state.username = ''
 if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
 
 # ==========================================
-# TELA DE LOGIN (LAYOUT DA IMAGEM)
+# TELA DE LOGIN (ESTILO DO ARQUIVO .TXT)
 # ==========================================
 if not st.session_state.logged_in:
-    
-    # Colunas: [Espaço Vazio] [Cartão Branco] [Espaço Vazio]
-    # Ajustei as proporções para o cartão não ficar nem muito largo nem muito estreito
-    c1, c2, c3 = st.columns([1, 1.2, 1])
-    
-    with c2:
-        # Ícone do Sistema (Pode ser uma imagem ou emoji grande)
-        st.markdown("<div style='text-align: center; font-size: 60px; margin-bottom: -20px;'>🏦</div>", unsafe_allow_html=True)
-        
-        st.title("Gestão Correspondente")
-        st.write("Sistema CRM para Correspondentes Bancários")
-        
-        st.write("") # Espaço
-        
-        # Abas de navegação
-        tab_entrar, tab_criar = st.tabs(["Entrar", "Registar"])
-        
-        # --- ABA ENTRAR ---
-        with tab_entrar:
-            st.write("")
-            u = st.text_input("Utilizador", placeholder="Digite seu usuário", key="login_u")
-            p = st.text_input("Senha", type="password", placeholder="••••••••", key="login_p")
-            
-            # Link de esqueceu senha (simulado)
-            with st.expander("Esqueceu a senha?", expanded=False):
-                if st.session_state.recup_etapa == 0:
-                    ru = st.text_input("Usuário", key="ru")
-                    re = st.text_input("E-mail", key="re")
-                    if st.button("Enviar Código", key="btn_env_cod"):
-                        res = db.iniciar_recuperacao_senha(ru, re)
-                        if res['status']:
-                            email_utils.email_recuperacao(re, res['codigo'])
-                            st.session_state.recup_etapa = 1
-                            st.session_state.rec_user_temp = ru
-                            st.success("Enviado!")
-                            time.sleep(1); st.rerun()
-                        else: st.error(res['msg'])
-                elif st.session_state.recup_etapa == 1:
-                    st.info(f"Código para: {st.session_state.rec_user_temp}")
-                    rc = st.text_input("Código")
-                    rn = st.text_input("Nova Senha", type="password")
-                    if st.button("Confirmar", key="btn_conf_sen"):
-                        if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
-                            st.success("Alterada!"); st.session_state.recup_etapa = 0; time.sleep(1); st.rerun()
-                        else: st.error("Erro.")
+    # Sobrescreve fundo APENAS para o login
+    st.markdown("""
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 50%, #4c1d95 100%);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
+    c1, c2, c3 = st.columns([1, 1.2, 1])
+    with c2:
+        st.write("")
+        st.write("")
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        
+        # Ícone
+        st.markdown("""
+        <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+            <div style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); width: 60px; height: 60px; border-radius: 15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px -5px rgba(124, 58, 237, 0.5);">
+                <span style="font-size: 30px;">🟣</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("<h2 style='text-align: center; color: #1e293b; margin-bottom: 5px;'>Bem-vindo de volta</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: #64748b; font-size: 14px; margin-bottom: 30px;'>Acesse o painel de gestão</p>", unsafe_allow_html=True)
+        
+        tab_entrar, tab_criar = st.tabs(["Login", "Criar Conta"])
+        
+        with tab_entrar:
+            u = st.text_input("Usuário", placeholder="Digite seu usuário", key="log_u")
+            p = st.text_input("Senha", type="password", placeholder="••••••••", key="log_p")
+            
             st.write("")
-            if st.button("Entrar ➔"):
+            if st.button("ENTRAR NA CONTA", use_container_width=True):
                 r = db.verificar_login(u, p)
                 if r['status'] == 'success':
                     if r['approved']:
@@ -175,65 +161,69 @@ if not st.session_state.logged_in:
                         st.session_state.role = r['role']
                         st.session_state.username = u
                         st.rerun()
-                    else: st.warning("Aguarde aprovação.")
+                    else: st.warning("🔒 Aguardando aprovação do admin.")
                 else: st.error(r['msg'])
+            
+            with st.expander("Esqueceu a senha?"):
+                if st.session_state.recup_etapa == 0:
+                    ru = st.text_input("Seu Usuário", key="ru")
+                    re = st.text_input("Seu E-mail", key="re")
+                    if st.button("Enviar Código"):
+                        res = db.iniciar_recuperacao_senha(ru, re)
+                        if res['status']:
+                            email_utils.email_recuperacao(re, res['codigo'])
+                            st.session_state.recup_etapa = 1
+                            st.session_state.rec_user_temp = ru
+                            st.success("Enviado!"); time.sleep(1); st.rerun()
+                        else: st.error(res['msg'])
+                elif st.session_state.recup_etapa == 1:
+                    rc = st.text_input("Código")
+                    rn = st.text_input("Nova Senha", type="password")
+                    if st.button("Confirmar"):
+                        if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rc, rn):
+                            st.success("Senha alterada!"); st.session_state.recup_etapa = 0; time.sleep(1); st.rerun()
+                        else: st.error("Erro.")
 
-        # --- ABA CRIAR CONTA ---
         with tab_criar:
-            st.write("")
-            nu = st.text_input("Criar Usuário", placeholder="Ex: joaosilva", key="reg_u")
-            ne = st.text_input("E-mail", placeholder="email@exemplo.com", key="reg_e")
-            np = st.text_input("Senha", type="password", placeholder="••••••••", key="reg_p")
-            npc = st.text_input("Confirmar", type="password", placeholder="••••••••", key="reg_pc")
+            nu = st.text_input("Novo Usuário", key="reg_u")
+            ne = st.text_input("E-mail", key="reg_e")
+            np = st.text_input("Senha", type="password", key="reg_p")
+            npc = st.text_input("Confirmar", type="password", key="reg_pc")
             
             st.write("")
-            if st.button("Criar Conta"):
+            if st.button("SOLICITAR ACESSO", use_container_width=True):
                 if np != npc: st.error("Senhas não batem.")
                 else:
                     res = db.registrar_usuario(nu, np, ne)
                     if res['status']:
-                        st.success(f"Criado! ID: {res['id_gerado']}")
+                        st.success(f"ID: {res['id_gerado']}")
                         email_utils.email_boas_vindas(nu, ne)
                     else: st.error(res['msg'])
-        
-        st.markdown("<br><div style='text-align: center; color: #999; font-size: 11px;'>EDWCRED © 2026</div>", unsafe_allow_html=True)
 
-# ==========================================
-# SISTEMA INTERNO (LAYOUT LIMPO)
-# ==========================================
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: rgba(255,255,255,0.7); margin-top: 20px; font-size: 12px;'>EDWCRED © 2026</p>", unsafe_allow_html=True)
+
+# --- ÁREA INTERNA ---
 else:
-    # Remove o fundo roxo e o estilo de cartão quando entra no sistema
-    st.markdown("""
-        <style>
-        .stApp {
-            background: #ffffff; /* Fundo branco limpo */
-        }
-        div[data-testid="column"]:nth-of-type(2) {
-            background-color: transparent;
-            box-shadow: none;
-            padding: 0;
-        }
-        .stButton>button {
-            background: #00b894; /* Botão verde padrão do sistema */
-            border-radius: 5px;
-        }
-        h1 { text-align: left; }
-        p { text-align: left; }
-        </style>
-    """, unsafe_allow_html=True)
-
     with st.sidebar:
-        st.write(f"👤 **{st.session_state.username}**")
+        # Perfil com gradiente
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #f8f7ff 0%, #eef2ff 100%); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid #e0e7ff;">
+            <div style="font-weight: 700; color: #1e293b; font-size: 16px;">{st.session_state.username}</div>
+            <div style="font-size: 12px; color: #6366f1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">{st.session_state.role}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         pg = "CRM"
         if st.session_state.role == 'admin':
-            pg = st.radio("Menu", ["CRM", "Admin Panel"])
+            pg = st.radio("Menu", ["CRM", "Painel Admin"])
             
         st.markdown("---")
         if st.button("Sair", use_container_width=True):
             st.session_state.logged_in = False
             st.rerun()
-            
+
     if pg == "CRM": 
         app_crm.render_crm()
-    elif pg == "Admin Panel": 
+    elif pg == "Painel Admin": 
         admin_panel.render_admin()
