@@ -9,14 +9,83 @@ import database as db
 # DEFINIÇÃO DAS LISTAS (FIXAS NO TOPO)
 # ==========================================
 LISTA_BANCOS = [
-  "001 - Banco do Brasil", "003 - Banco da Amazônia", "004 - Banco do Nordeste", "021 - Banestes", "025 - Banco Alfa",
-  "033 - Santander", "041 - Banrisul", "070 - BRB", "077 - Inter", "082 - Banrisul", "085 - Ailos", "097 - Cresol",
-  "104 - Caixa", "121 - Agibank", "197 - Stone", "208 - BTG Pactual", "212 - Banco Original", "237 - Bradesco",
-  "246 - ABC Brasil", "260 - Nubank", "290 - PagBank", "318 - BMG", "323 - Mercado Pago", "336 - C6 Bank", "341 - Itaú",
-  "364 - Gerencianet (Efí)", "380 - PicPay", "383 - Juno", "399 - HSBC Brasil", "422 - Safra", "456 - Banco MUFG",
-  "464 - Banco Sumitomo Mitsui", "473 - Banco Caixa Geral", "654 - Neon", "735 - Neon Pagamentos",
-  "745 - Citibank", "748 - Sicredi", "756 - Sicoob", "Outro"
+  "001 - Banco do Brasil",
+  "003 - Banco da Amazônia",
+  "004 - Banco do Nordeste",
+  "007 - BNDES",
+  "008 - Banco Meridional",
+  "021 - Banestes",
+  "024 - Banco Bandepe",
+  "025 - Banco Alfa",
+  "029 - Banco Banerj",
+  "033 - Santander",
+  "036 - Banco Bradesco BBI",
+  "037 - Banco do Estado do Pará",
+  "040 - Banco Cargill",
+  "041 - Banrisul",
+  "047 - Banco do Estado de Sergipe",
+  "062 - Hipercard Banco Múltiplo",
+  "063 - Banco Bradescard",
+  "065 - Banco Andbank",
+  "066 - Banco Morgan Stanley",
+  "069 - Banco Crefisa",
+  "070 - BRB",
+  "074 - Banco J. Safra",
+  "075 - Banco ABN Amro",
+  "077 - Inter",
+  "082 - Banco Topázio",
+  "085 - Ailos",
+  "090 - Unicred",
+  "097 - Cresol",
+  "100 - Planner Corretora",
+  "102 - XP Investimentos",
+  "104 - Caixa",
+  "107 - Banco BOCOM BBM",
+  "113 - Banco Arbi",
+  "119 - Banco Western Union",
+  "121 - Agibank",
+  "124 - Banco Woori",
+  "136 - Uniprime",
+  "138 - Getnet",
+  "197 - Stone",
+  "208 - BTG Pactual",
+  "212 - Banco Original",
+  "218 - Banco BS2",
+  "222 - Banco Credit Agricole",
+  "237 - Bradesco",
+  "246 - ABC Brasil",
+  "254 - Paraná Banco",
+  "260 - Nubank",
+  "265 - Banco Fator",
+  "290 - PagBank",
+  "318 - BMG",
+  "323 - Mercado Pago",
+  "335 - Banco Digio",
+  "336 - C6 Bank",
+  "341 - Itaú",
+  "364 - Gerencianet (Efí)",
+  "380 - PicPay",
+  "383 - Juno",
+  "399 - HSBC Brasil",
+  "422 - Safra",
+  "456 - Banco MUFG",
+  "464 - Banco Sumitomo Mitsui",
+  "473 - Banco Caixa Geral",
+  "611 - Banco Paulista",
+  "612 - Banco Guanabara",
+  "623 - Banco Pan",
+  "630 - Banco Smartbank",
+  "654 - Neon",
+  "735 - Neon Pagamentos",
+  "745 - Citibank",
+  "746 - Banco Modal",
+  "748 - Sicredi",
+  "752 - Banco BNP Paribas",
+  "756 - Sicoob",
+  "757 - Banco KEB Hana",
+  "Outro"
 ]
+
 TIPOS_CHAVE_PIX = ["CPF", "Celular", "E-mail", "CNPJ", "Chave Aleatória"]
 TIPOS_CONTA = ["Corrente", "Poupança", "Pagamento", "Salário"]
 
@@ -176,7 +245,7 @@ def render_page(pagina_atual):
                         tarefas.append(f"🔎 Consultar CLT (Elegibilidade): {nome}")
                 
                 elif sub == "Margem Livre" and row['status_venda'] == "Pendente":
-                    # Avisa todo dia
+                    # Avisa todo dia se tem margem
                     tarefas.append(f"✅ Margem Livre CLT: {nome}")
 
             # 2. INSS
@@ -294,6 +363,7 @@ def render_page(pagina_atual):
                 # TIPO (Isso define o que aparece no próximo dropdown)
                 nt = st.selectbox("Tipo", ["CLT", "INSS", "FGTS"], key="cad_tipo")
                 
+                # Formato DD/MM/YYYY
                 nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc", format="DD/MM/YYYY")
             
             with c2:
@@ -321,20 +391,29 @@ def render_page(pagina_atual):
                     st.caption("Programar Consulta")
                     data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data que o sistema emitirá o alerta.", format="DD/MM/YYYY")
 
-            # Busca CEP
+            # --- BUSCA CEP MAIS BONITA E ALINHADA ---
             st.markdown("---")
-            col_cep, col_btn, col_res = st.columns([2, 1, 3])
-            ncep = col_cep.text_input("CEP", key="cad_cep")
-            if col_btn.button("🔍 Buscar CEP"):
-                d = buscar_endereco_cep(ncep)
-                if d:
-                    st.session_state.cad_rua = d.get('logradouro', '')
-                    st.session_state.cad_bairro = d.get('bairro', '')
-                    st.session_state.cad_cid = d.get('localidade', '')
-                    st.session_state.cad_uf = d.get('uf', '')
-                    st.toast("Endereço encontrado!")
-                    st.rerun()
-                else: st.error("CEP inválido")
+            
+            # Layout de Colunas Ajustado: [CEP Input] [Botão Buscar] [Vazio]
+            col_cep_layout = st.columns([0.3, 0.2, 0.5]) 
+            
+            with col_cep_layout[0]:
+                ncep = st.text_input("CEP", key="cad_cep", placeholder="00000-000")
+                
+            with col_cep_layout[1]:
+                # Espaçador para alinhar o botão com o input (compensa o label do input)
+                st.markdown("<div style='height: 29px;'></div>", unsafe_allow_html=True)
+                # Botão 'secondary' é mais clean (fundo branco com borda) e ícone
+                if st.button("🔍 Buscar", key="btn_busca_cep_cad", use_container_width=True, type="secondary"):
+                    d = buscar_endereco_cep(ncep)
+                    if d:
+                        st.session_state.cad_rua = d.get('logradouro', '')
+                        st.session_state.cad_bairro = d.get('bairro', '')
+                        st.session_state.cad_cid = d.get('localidade', '')
+                        st.session_state.cad_uf = d.get('uf', '')
+                        st.toast("Endereço encontrado!", icon="✅")
+                        st.rerun()
+                    else: st.error("CEP inválido")
 
             e1, e2 = st.columns([3, 1])
             nrua = e1.text_input("Endereço", key="cad_rua")
@@ -369,16 +448,11 @@ def render_page(pagina_atual):
             
             st.write("")
             if st.button("SALVAR CADASTRO", use_container_width=True, type="primary"):
-                # Status Automático Baseado na Situação
+                # Status Automático
                 status_inicial = "Pendente"
-                
-                # CLT
-                if nt == "CLT":
-                    if nsub == "Não Elegível": status_inicial = "Não Elegível"
-                
-                # INSS
-                if nt == "INSS":
-                    if nsub == "Bloqueado": status_inicial = "Bloqueado"
+                if nsub == "Não Elegível": status_inicial = "Não Elegível"
+                if nsub == "Bloqueado": status_inicial = "Bloqueado"
+                if nsub == "Sem Margem": status_inicial = "Pendente" # Ou outra lógica se preferir
                 
                 dados = {
                     "nome": nn, "telefone": ntel, "cpf": nc, "tipo": nt, "sub_categoria": nsub,
@@ -392,10 +466,7 @@ def render_page(pagina_atual):
                 }
                 db.add_cliente(dados)
                 st.success("Salvo com sucesso!")
-                
-                # Aciona flag de limpeza
                 st.session_state['limpar_formulario_cadastro'] = True
-                
                 time.sleep(1); st.rerun()
             
             st.markdown('</div>', unsafe_allow_html=True)
@@ -466,9 +537,23 @@ def render_page(pagina_atual):
                     except: pass
                 edata_cons = ec4.date_input("Data Consulta", value=val_dc, format="DD/MM/YYYY")
 
+            # --- BUSCA CEP NA EDIÇÃO (Também melhorada) ---
             st.markdown("#### Endereço & Contato")
-            col_ecep, col_ebtn = st.columns([0.7, 0.3])
-            ecep = col_ecep.text_input("CEP", value=str(row['cep']), key="e_cep_in")
+            
+            col_ed_cep_layout = st.columns([0.3, 0.2, 0.5])
+            with col_ed_cep_layout[0]:
+                ecep = st.text_input("CEP", value=str(row['cep']), key="e_cep_in")
+            with col_ed_cep_layout[1]:
+                st.markdown("<div style='height: 29px;'></div>", unsafe_allow_html=True)
+                if st.button("🔍 Buscar", key="btn_e_cep", use_container_width=True, type="secondary"):
+                    d = buscar_endereco_cep(ecep)
+                    if d:
+                        st.session_state.ed_end = d.get('logradouro','')
+                        st.session_state.ed_bai = d.get('bairro','')
+                        st.session_state.ed_cid = d.get('localidade','')
+                        st.session_state.ed_uf = d.get('uf','')
+                        st.toast("Endereço Atualizado.")
+                        st.rerun()
             
             val_end = st.session_state.ed_end if st.session_state.ed_end else str(row['endereco'])
             val_bai = st.session_state.ed_bai if st.session_state.ed_bai else str(row['bairro'])
