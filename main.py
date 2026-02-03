@@ -91,15 +91,12 @@ if not st.session_state.logged_in:
                 elif np != npc:
                     st.error("As senhas não coincidem.")
                 else:
-                    # Tenta registar e recebe a resposta do banco
                     resultado = db.registrar_usuario(nu, np, ne)
-                    
                     if resultado['status']:
                         st.success(f"Solicitado com sucesso! Seu ID: #{resultado['id_gerado']}")
                         st.info("Aguarde o e-mail de aprovação.")
                         email_utils.email_boas_vindas(nu, ne)
                     else:
-                        # Mostra o erro específico (Duplicado)
                         st.error(resultado['msg'])
 
 else:
@@ -112,5 +109,7 @@ else:
             st.session_state.logged_in = False
             st.rerun()
             
-    if pg == "CRM": app_crm.render_crm()
-    elif pg == "Admin Panel": admin_panel.render_admin()
+    if pg == "CRM": 
+        app_crm.render_crm()
+    elif pg == "Admin Panel": 
+        admin_panel.render_admin()
