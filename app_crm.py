@@ -6,7 +6,47 @@ import time
 import database as db 
 
 # --- Helpers ---
-LISTA_BANCOS = ["001 - Banco do Brasil", "033 - Santander", "104 - Caixa", "237 - Bradesco", "341 - Itaú", "260 - Nubank", "077 - Inter", "Outro"]
+LISTA_BANCOS = [
+  "001 - Banco do Brasil",
+  "003 - Banco da Amazônia",
+  "004 - Banco do Nordeste",
+  "021 - Banestes",
+  "025 - Banco Alfa",
+  "033 - Santander",
+  "041 - Banrisul",
+  "070 - BRB",
+  "077 - Inter",
+  "082 - Banrisul",
+  "085 - Ailos",
+  "097 - Cresol",
+  "104 - Caixa",
+  "121 - Agibank",
+  "197 - Stone",
+  "208 - BTG Pactual",
+  "212 - Banco Original",
+  "237 - Bradesco",
+  "246 - ABC Brasil",
+  "260 - Nubank",
+  "290 - PagBank",
+  "318 - BMG",
+  "323 - Mercado Pago",
+  "336 - C6 Bank",
+  "341 - Itaú",
+  "364 - Gerencianet (Efí)",
+  "380 - PicPay",
+  "383 - Juno",
+  "399 - HSBC Brasil",
+  "422 - Safra",
+  "456 - Banco MUFG",
+  "464 - Banco Sumitomo Mitsui",
+  "473 - Banco Caixa Geral",
+  "654 - Neon",
+  "735 - Neon Pagamentos",
+  "745 - Citibank",
+  "748 - Sicredi",
+  "756 - Sicoob",
+  "Outro"
+]
 TIPOS_CHAVE_PIX = ["CPF", "Celular", "E-mail", "CNPJ", "Chave Aleatória"]
 TIPOS_CONTA = ["Corrente", "Poupança", "Pagamento", "Salário"]
 
