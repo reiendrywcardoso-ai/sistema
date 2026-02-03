@@ -21,7 +21,7 @@ st.markdown("""
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'role' not in st.session_state: st.session_state.role = ''
 if 'username' not in st.session_state: st.session_state.username = ''
-if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0 # 0=Nada, 1=Codigo Enviado
+if 'recup_etapa' not in st.session_state: st.session_state.recup_etapa = 0
 
 if not st.session_state.logged_in:
     c1, c2, c3 = st.columns([1, 2, 1])
@@ -30,7 +30,7 @@ if not st.session_state.logged_in:
         t1, t2 = st.tabs(["Entrar", "Criar Conta"])
         
         with t1:
-            u = st.text_input("Usuário")
+            u = st.text_input("Utilizador")
             p = st.text_input("Senha", type="password")
             if st.button("ENTRAR", type="primary"):
                 r = db.verificar_login(u, p)
@@ -40,50 +40,47 @@ if not st.session_state.logged_in:
                         st.session_state.role = r['role']
                         st.session_state.username = u
                         st.rerun()
-                    else: st.warning("Aguardando aprovação.")
+                    else: st.warning("Aguarde a aprovação do Administrador.")
                 else: st.error(r['msg'])
             
-            # --- AREA DE RECUPERAÇÃO DE SENHA ---
             st.markdown("---")
-            with st.expander("🔑 Esqueci minha senha"):
+            with st.expander("🔑 Esqueci a minha senha"):
                 if st.session_state.recup_etapa == 0:
-                    st.write("Digite seus dados para receber o código.")
-                    rec_user = st.text_input("Seu Usuário", key="rec_u")
+                    st.write("Digite os seus dados para receber o código.")
+                    rec_user = st.text_input("Seu Utilizador", key="rec_u")
                     rec_email = st.text_input("Seu E-mail", key="rec_e")
                     
-                    if st.button("Enviar Código de Recuperação"):
+                    if st.button("Enviar Código"):
                         res = db.iniciar_recuperacao_senha(rec_user, rec_email)
                         if res['status']:
                             email_utils.email_recuperacao(rec_email, res['codigo'])
                             st.session_state.recup_etapa = 1
-                            st.session_state.rec_user_temp = rec_user # Guarda usuario para proxima etapa
-                            st.success("Código enviado para o e-mail! Verifique (inclusive spam).")
+                            st.session_state.rec_user_temp = rec_user
+                            st.success("Código enviado para o e-mail!")
                             time.sleep(1)
                             st.rerun()
-                        else:
-                            st.error(res['msg'])
+                        else: st.error(res['msg'])
                 
                 elif st.session_state.recup_etapa == 1:
-                    st.success(f"Código enviado para o usuário: {st.session_state.rec_user_temp}")
-                    rec_codigo = st.text_input("Digite o Código recebido no E-mail")
+                    st.success(f"Código enviado para: {st.session_state.rec_user_temp}")
+                    rec_codigo = st.text_input("Código recebido")
                     rec_nova_senha = st.text_input("Nova Senha", type="password", key="rec_np")
                     
                     if st.button("Alterar Senha"):
                         if db.finalizar_recuperacao_senha(st.session_state.rec_user_temp, rec_codigo, rec_nova_senha):
-                            st.success("Senha alterada com sucesso! Faça login.")
+                            st.success("Senha alterada! Faça login.")
                             st.session_state.recup_etapa = 0
                             time.sleep(2)
                             st.rerun()
-                        else:
-                            st.error("Código incorreto.")
+                        else: st.error("Código incorreto.")
                     
-                    if st.button("Voltar / Cancelar"):
+                    if st.button("Cancelar"):
                         st.session_state.recup_etapa = 0
                         st.rerun()
 
         with t2:
             st.info("Preencha para solicitar acesso.")
-            nu = st.text_input("Novo Usuário", key="reg_u")
+            nu = st.text_input("Novo Utilizador", key="reg_u")
             ne = st.text_input("E-mail", key="reg_e")
             np = st.text_input("Senha", type="password", key="reg_p")
             npc = st.text_input("Confirmar Senha", type="password", key="reg_pc")
@@ -92,14 +89,17 @@ if not st.session_state.logged_in:
                 if not nu or not ne or not np:
                     st.warning("Preencha todos os campos.")
                 elif np != npc:
-                    st.error("As senhas não são iguais.")
+                    st.error("As senhas não coincidem.")
                 else:
+                    # Tenta registar e recebe a resposta do banco
                     resultado = db.registrar_usuario(nu, np, ne)
+                    
                     if resultado['status']:
-                        st.success(f"Solicitado com sucesso! ID: #{resultado['id_gerado']}")
+                        st.success(f"Solicitado com sucesso! Seu ID: #{resultado['id_gerado']}")
                         st.info("Aguarde o e-mail de aprovação.")
                         email_utils.email_boas_vindas(nu, ne)
                     else:
+                        # Mostra o erro específico (Duplicado)
                         st.error(resultado['msg'])
 
 else:
