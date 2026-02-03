@@ -247,7 +247,8 @@ def render_page(pagina_atual):
                 # Tipo com auto-refresh para mudar as opções de Situação
                 nt = st.selectbox("Tipo", ["CLT", "INSS", "FGTS"], key="cad_tipo")
                 
-                nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc")
+                # DATA DE NASCIMENTO: Formato Dia/Mês/Ano
+                nas = st.date_input("Nascimento", min_value=date(1920, 1, 1), max_value=date(2030, 12, 31), key="cad_nasc", format="DD/MM/YYYY")
             
             with c2:
                 ntel = st.text_input("Telefone", key="cad_tel")
@@ -265,11 +266,13 @@ def render_page(pagina_atual):
 
                 if nt == "CLT":
                     st.caption("Contrato de Trabalho")
-                    data_termino = st.date_input("Data de Término (Opcional)", value=None, key="cad_termino", help="Se preenchido, não alertará sobre margem.")
+                    # DATA DE TÉRMINO: Formato Dia/Mês/Ano
+                    data_termino = st.date_input("Data de Término (Opcional)", value=None, key="cad_termino", help="Se preenchido, não alertará sobre margem.", format="DD/MM/YYYY")
                 
                 if nt == "FGTS" and nsub == "Aniversário":
                     st.caption("Consulta Futura")
-                    data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data exata que o sistema avisará.")
+                    # DATA DE CONSULTA: Formato Dia/Mês/Ano
+                    data_consulta = st.date_input("Data para Consultar", value=None, key="cad_consulta", help="Data exata que o sistema avisará.", format="DD/MM/YYYY")
 
             # Busca CEP
             st.markdown("---")
@@ -397,7 +400,8 @@ def render_page(pagina_atual):
                 if row.get('data_termino'):
                     try: val_dt = datetime.strptime(str(row['data_termino']), '%Y-%m-%d').date()
                     except: pass
-                edata_term = ec4.date_input("Data Término", value=val_dt)
+                # DATA DE TÉRMINO: Formato Dia/Mês/Ano
+                edata_term = ec4.date_input("Data Término", value=val_dt, format="DD/MM/YYYY")
 
             edata_cons = None
             if etipo == "FGTS" and esub == "Aniversário":
@@ -405,7 +409,8 @@ def render_page(pagina_atual):
                 if row.get('data_consulta'):
                     try: val_dc = datetime.strptime(str(row['data_consulta']), '%Y-%m-%d').date()
                     except: pass
-                edata_cons = ec4.date_input("Data Consulta", value=val_dc)
+                # DATA DE CONSULTA: Formato Dia/Mês/Ano
+                edata_cons = ec4.date_input("Data Consulta", value=val_dc, format="DD/MM/YYYY")
 
             st.markdown("#### Endereço & Contato")
             col_ecep, col_ebtn = st.columns([0.7, 0.3])
