@@ -28,9 +28,10 @@ def render_admin():
         """, unsafe_allow_html=True)
 
     st.write("")
-    # ABA CRIAR ACESSO RESTAURADA AQUI
+    
     tab1, tab2, tab3 = st.tabs(["⏳ Pendentes", "👥 Gerenciar / Editar", "➕ Criar Acesso"])
     
+    # --- ABA PENDENTES ---
     with tab1:
         if df_pend.empty:
             st.info("Nenhuma solicitação pendente.")
@@ -56,14 +57,14 @@ def render_admin():
                         db.deletar_usuario(row['username'])
                         st.rerun()
     
-    # ABA GERENCIAR COM EDIÇÃO (RESTAURADA)
+    # --- ABA GERENCIAR ---
     with tab2:
         st.dataframe(df_all, use_container_width=True, hide_index=True)
         
         st.markdown("---")
         st.markdown("### ✏️ Editar / Remover Usuário")
         
-        u_sel = st.selectbox("Selecione:", ["Selecione"] + df_all['username'].tolist())
+        u_sel = st.selectbox("Selecione:", ["Selecione"] + df_all['username'].tolist(), key="sel_user_edit")
         
         if u_sel != "Selecione":
             row_u = df_all[df_all['username'] == u_sel].iloc[0]
@@ -71,35 +72,37 @@ def render_admin():
             with st.container():
                 st.markdown('<div class="react-card">', unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
-                nu = c1.text_input("Login", value=row_u['username'])
-                ne = c2.text_input("E-mail", value=row_u['email'])
-                np = c1.text_input("Senha", value=row_u['password'], type="password")
-                nr = c2.selectbox("Função", ["user", "admin"], index=0 if row_u['role']=="user" else 1)
+                # Adicionei keys únicas aqui para evitar conflito
+                nu = c1.text_input("Login", value=row_u['username'], key="ed_login")
+                ne = c2.text_input("E-mail", value=row_u['email'], key="ed_email")
+                np = c1.text_input("Senha", value=row_u['password'], type="password", key="ed_pass")
+                nr = c2.selectbox("Função", ["user", "admin"], index=0 if row_u['role']=="user" else 1, key="ed_role")
                 
-                if st.button("Salvar Alterações"):
+                if st.button("Salvar Alterações", key="btn_save_edit"):
                     db.update_usuario(u_sel, {"username": nu, "password": np, "email": ne, "role": nr})
                     st.success("Usuário Atualizado!"); time.sleep(1); st.rerun()
                 
                 st.markdown("---")
-                if st.button("🗑️ Remover Acesso"):
+                if st.button("🗑️ Remover Acesso", key="btn_del_user"):
                     if u_sel == 'admin': st.error("Não pode remover o admin principal.")
                     else:
                         db.deletar_usuario(u_sel)
                         st.success("Removido."); time.sleep(1); st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # ABA CRIAR ACESSO (MANUAL) - RESTAURADA
+    # --- ABA CRIAR ACESSO (MANUAL) ---
     with tab3:
         st.markdown('<div class="react-card">', unsafe_allow_html=True)
         st.write("Criar um usuário manualmente (já aprovado).")
         
         c_new1, c_new2 = st.columns(2)
-        new_u = c_new1.text_input("Novo Usuário")
-        new_e = c_new2.text_input("Novo E-mail")
-        new_p = c_new1.text_input("Nova Senha", type="password")
-        new_r = c_new2.selectbox("Função", ["user", "admin"])
+        # Adicionei keys únicas aqui também
+        new_u = c_new1.text_input("Novo Usuário", key="new_u_manual")
+        new_e = c_new2.text_input("Novo E-mail", key="new_e_manual")
+        new_p = c_new1.text_input("Nova Senha", type="password", key="new_p_manual")
+        new_r = c_new2.selectbox("Função", ["user", "admin"], key="new_r_manual")
         
-        if st.button("Criar Usuário"):
+        if st.button("Criar Usuário", key="btn_create_manual"):
             res = db.registrar_usuario(new_u, new_p, new_e, new_r, approved=1)
             if res['status']:
                 st.success(f"Criado com sucesso! ID: {res['id_gerado']}")
